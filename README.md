@@ -116,14 +116,22 @@ The integration ships its own cards and loads them for you, so there is no resou
 
 **Edit dashboard → Add card → search "ONVIF Motion"**
 
-| Card | Shows |
-| --- | --- |
-| **ONVIF Motion: Last Motion** | Latest snapshot of each camera, name and time as plain text over the picture; tap for the live view |
-| **ONVIF Motion: Live** | Live view of each camera |
-| **ONVIF Motion: Camera controls** | One camera: live view, pan / tilt / zoom pad, presets, spotlight, night vision, auto tracking, alarm, siren (with confirmation), take snapshot. Only the controls the camera has are shown |
-| **ONVIF Motion: Detections** | Last detection (type + how long ago) and today's count for each camera |
-| **ONVIF Motion: Alerts & snapshots** | Per camera: connection status, Snapshots / Telegram / WhatsApp switches |
-| **ONVIF Motion: All cameras (full view)** | All of the above in one card, a whole camera tab in one go |
+Each section has its own card. Use the ones you want, in any order:
+
+| Card | Type | Shows |
+| --- | --- | --- |
+| **Recent motion** | `custom:onvif-motion-last-motion-card` | Latest motion snapshot of each camera, name and time over the picture; tap for live view |
+| **Live cameras** | `custom:onvif-motion-live-card` | Live view of each camera |
+| **Detections** | `custom:onvif-motion-detections-card` | Last detection (type + how long ago) and today's count per camera |
+| **Telegram & WhatsApp** | `custom:onvif-motion-notify-card` | Telegram and WhatsApp alert switches per camera |
+| **Snapshots** | `custom:onvif-motion-snapshots-card` | Snapshot-on-motion switch per camera; hold a tile to take a snapshot now |
+| **Alerts & snapshots** | `custom:onvif-motion-alerts-card` | Connection status + Snapshots / Telegram / WhatsApp per camera |
+| **PTZ control** | `custom:onvif-motion-ptz-card` | One camera: pan / tilt / zoom pad and presets, live view on top (`show_live: false` to hide) |
+| **Camera controls** | `custom:onvif-motion-settings-card` | One camera: spotlight, night vision, auto tracking, alarm, siren (with confirmation), take snapshot |
+| **360 / PTZ camera** | `custom:onvif-motion-controls-card` | One camera complete: live view + PTZ + presets + all controls |
+| **All cameras (full view)** | `custom:onvif-motion-dashboard-card` | Every section in one card, a whole camera tab in one go |
+
+Cards only show what a camera actually has: a fixed camera gets no PTZ pad, and a non-VIGI camera gets no spotlight or siren.
 
 The cards find your cameras on their own, and new cameras show up without editing anything. Every card has a visual editor for picking cameras, the title and the number of columns. They are built from standard Home Assistant cards, so they follow your theme. In YAML:
 
@@ -135,11 +143,10 @@ title: Last Motion                         # optional, false hides the heading
 ```
 
 ```yaml
-type: custom:onvif-motion-controls-card
+type: custom:onvif-motion-ptz-card
 camera: camera.outdoor_360                 # optional: default is the first PTZ camera
+show_live: true
 ```
-
-Other types: `custom:onvif-motion-live-card`, `custom:onvif-motion-detections-card`, `custom:onvif-motion-alerts-card`, `custom:onvif-motion-dashboard-card`.
 
 Prefer plain cards? [`examples/dashboard.yaml`](examples/dashboard.yaml) has the same "Last Motion" grid in core-card YAML.
 

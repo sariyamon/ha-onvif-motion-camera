@@ -15,15 +15,11 @@ def test_cards_file_matches_manifest_version() -> None:
     version = json.loads((ROOT / "manifest.json").read_text())["version"]
     text = CARDS_FILE.read_text()
     assert f'const VERSION = "{version}"' in text
-    for tag in (
-        "onvif-motion-last-motion-card",
-        "onvif-motion-live-card",
-        "onvif-motion-detections-card",
-        "onvif-motion-alerts-card",
-        "onvif-motion-controls-card",
-        "onvif-motion-dashboard-card",
+    for slug in (
+        "last-motion", "live", "detections", "notify", "snapshots",
+        "alerts", "ptz", "settings", "controls", "dashboard",
     ):
-        assert f'"{tag}"' in text
+        assert f'["{slug}",' in text
 
 
 async def test_cards_registered(hass: HomeAssistant) -> None:

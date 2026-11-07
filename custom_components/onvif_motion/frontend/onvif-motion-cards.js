@@ -13,7 +13,7 @@
  *   type: custom:onvif-motion-controls-card      – one camera: live view, PTZ, spotlight, siren…
  */
 const DOMAIN = "onvif_motion";
-const VERSION = "1.4.0";
+const VERSION = "1.4.1";
 
 const SHADOW = "0 0 4px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.9)";
 const LABEL = {
@@ -167,6 +167,35 @@ export function alertsConfig(cams, cfg) {
   });
 }
 
+export function notifyConfig(cams, cfg) {
+  return alertsConfig(cams, {
+    ...cfg,
+    title: cfg.title ?? "Telegram & WhatsApp",
+    icon: cfg.icon || "mdi:message-badge",
+    show: ["telegram_alerts", "whatsapp_alerts"],
+  });
+}
+
+export function snapshotsConfig(cams, cfg) {
+  if (!cams.length) return empty();
+  const cards = cams
+    .filter((c) => c.ents.snapshots || c.ents.take_snapshot)
+    .map((c) => ({
+      type: "tile",
+      entity: c.ents.snapshots || c.ents.take_snapshot,
+      name: c.name,
+      icon: "mdi:image-multiple",
+      vertical: true,
+      hold_action: c.ents.take_snapshot ? press(c.ents.take_snapshot) : { action: "more-info" },
+    }));
+  return withHeading(cfg, "Snapshots", "mdi:image-multiple", {
+    type: "grid",
+    columns: cfg.columns || 3,
+    square: false,
+    cards,
+  });
+}
+
 const PTZ = [
   ["ptz_zoom_out", "mdi:magnify-minus"],
   ["ptz_tilt_up", "mdi:chevron-up"],
@@ -176,23 +205,32 @@ const PTZ = [
   ["ptz_pan_right", "mdi:chevron-right"],
 ];
 
-export function controlsConfig(cams, cfg) {
-  const cam =
-    (cfg.camera && cams.find((c) => c.ents.live === cfg.camera)) ||
-    cams.find((c) => c.ents.ptz_pan_left) ||
-    cams[0];
-  if (!cam) return empty();
+function pickCamera(cams, cfg, prefer) {
+  return (
+    (cfg.camera && cams.find((c) => c.ents.live === cfg.camera || c.id === cfg.camera)) ||
+    cams.find(prefer) ||
+    cams[0]
+  );
+}
+
+const hasPtz = (c) => PTZ.some(([k]) => c.ents[k]) || c.ents.ptz_preset;
+const hasSettings = (c) =>
+  ["light:spotlight", "night_vision", "switch:target_tracking", "switch:alarm", "alarm_trigger"].some((k) => c.ents[k]);
+
+const liveTile = (e, cfg) => ({
+  type: "picture-entity",
+  entity: e.live,
+  camera_image: e.live,
+  camera_view: cfg.camera_view || "auto",
+  show_name: false,
+  show_state: false,
+});
+
+/** PTZ pad (pan / tilt / zoom) and preset positions, optionally with the live view on top. */
+function ptzCards(cam, cfg) {
   const e = cam.ents;
-  const cards = [
-    {
-      type: "picture-entity",
-      entity: e.live,
-      camera_image: e.live,
-      camera_view: cfg.camera_view || "auto",
-      show_name: false,
-      show_state: false,
-    },
-  ];
+  const cards = [];
+  if (cfg.show_live !== false) cards.push(liveTile(e, cfg));
   const ptz = PTZ.filter(([k]) => e[k]);
   if (ptz.length) {
     cards.push({
@@ -205,18 +243,24 @@ export function controlsConfig(cams, cfg) {
         show_name: false,
         icon_height: "32px",
         tap_action: press(e[k]),
+        hold_action: press(e[k]),
       })),
     });
   }
-  const rows = [];
-  if (e.ptz_preset) rows.push({ type: "tile", entity: e.ptz_preset, name: "Go to preset", features: [{ type: "select-options" }], features_position: "inline" });
-  if (e["light:spotlight"]) rows.push({ type: "tile", entity: e["light:spotlight"], name: "Spotlight", features: [{ type: "light-brightness" }] });
-  if (e.night_vision) rows.push({ type: "tile", entity: e.night_vision, name: "Night vision", features: [{ type: "select-options" }], features_position: "inline" });
-  cards.push(...rows);
+  if (e.ptz_preset)
+    cards.push({ type: "tile", entity: e.ptz_preset, name: "Go to preset", features: [{ type: "select-options" }], features_position: "inline" });
+  return cards;
+}
+
+/** Camera settings: spotlight, night vision, auto tracking, alarm, siren, snapshot. */
+function settingsCards(cam) {
+  const e = cam.ents;
+  const cards = [];
+  if (e["light:spotlight"]) cards.push({ type: "tile", entity: e["light:spotlight"], name: "Spotlight", features: [{ type: "light-brightness" }] });
+  if (e.night_vision) cards.push({ type: "tile", entity: e.night_vision, name: "Night vision", features: [{ type: "select-options" }], features_position: "inline" });
   const pairs = [];
   if (e["switch:target_tracking"]) pairs.push({ type: "tile", entity: e["switch:target_tracking"], name: "Auto tracking", vertical: true });
-  const alarm = e["switch:alarm"];
-  if (alarm) pairs.push({ type: "tile", entity: alarm, name: "Alarm armed", vertical: true });
+  if (e["switch:alarm"]) pairs.push({ type: "tile", entity: e["switch:alarm"], name: "Alarm armed", vertical: true });
   if (e.alarm_trigger)
     pairs.push({
       type: "tile",
@@ -229,7 +273,31 @@ export function controlsConfig(cams, cfg) {
   if (e.alarm_stop) pairs.push({ type: "tile", entity: e.alarm_stop, name: "Stop alarm", vertical: true, tap_action: press(e.alarm_stop) });
   if (e.take_snapshot) pairs.push({ type: "tile", entity: e.take_snapshot, name: "Take snapshot", vertical: true, tap_action: press(e.take_snapshot) });
   if (pairs.length) cards.push({ type: "grid", columns: 2, square: false, cards: pairs });
-  return withHeading(cfg, cam.name, "mdi:cctv", { type: "vertical-stack", cards });
+  return cards;
+}
+
+export function ptzConfig(cams, cfg) {
+  const cam = pickCamera(cams, cfg, hasPtz);
+  if (!cam) return empty();
+  const cards = ptzCards(cam, cfg);
+  if (cards.length <= 1 && !hasPtz(cam)) return empty(`${cam.name} has no pan / tilt / zoom.`);
+  return withHeading(cfg, `${cam.name} PTZ`, "mdi:camera-control", { type: "vertical-stack", cards });
+}
+
+export function settingsConfig(cams, cfg) {
+  const cam = pickCamera(cams, cfg, hasSettings);
+  if (!cam) return empty();
+  const cards = settingsCards(cam);
+  if (!cards.length) return empty(`${cam.name} has no adjustable settings.`);
+  return withHeading(cfg, `${cam.name} controls`, "mdi:tune-variant", { type: "vertical-stack", cards });
+}
+
+/** One camera complete (e.g. a 360 / PTZ camera): live view, PTZ pad, presets and settings. */
+export function controlsConfig(cams, cfg) {
+  const cam = pickCamera(cams, cfg, hasPtz);
+  if (!cam) return empty();
+  const cards = [...ptzCards(cam, { ...cfg, show_live: cfg.show_live !== false }), ...settingsCards(cam)];
+  return withHeading(cfg, cam.name, "mdi:rotate-360", { type: "vertical-stack", cards });
 }
 
 /** Everything at once: Last Motion, Live, controls of each PTZ camera, Detections, Alerts. */
@@ -237,7 +305,7 @@ export function dashboardConfig(cams, cfg) {
   if (!cams.length) return empty();
   const sub = { ...cfg, title: undefined };
   const cards = [lastMotionConfig(cams, sub), liveConfig(cams, sub)];
-  for (const cam of cams.filter((c) => c.ents.ptz_pan_left || c.ents["light:spotlight"])) {
+  for (const cam of cams.filter((c) => hasPtz(c) || hasSettings(c))) {
     cards.push(controlsConfig(cams, { ...sub, camera: cam.ents.live }));
   }
   cards.push(detectionsConfig(cams, sub), alertsConfig(cams, sub));
@@ -327,50 +395,25 @@ function defineCard(tag, name, description, build, schema) {
 }
 
 if (typeof customElements !== "undefined") {
-  defineCard(
-    "onvif-motion-last-motion-card",
-    "ONVIF Motion: Last Motion",
-    "Latest snapshot of each camera with its name and time.",
-    lastMotionConfig,
-    [CAMERAS_FIELD, TITLE_FIELD, COLUMNS_FIELD]
-  );
-  defineCard(
-    "onvif-motion-live-card",
-    "ONVIF Motion: Live",
-    "Live view of each camera.",
-    liveConfig,
-    [CAMERAS_FIELD, TITLE_FIELD, COLUMNS_FIELD]
-  );
-  defineCard(
-    "onvif-motion-detections-card",
-    "ONVIF Motion: Detections",
-    "Last detection and today's count for each camera.",
-    detectionsConfig,
-    [CAMERAS_FIELD, TITLE_FIELD]
-  );
-  defineCard(
-    "onvif-motion-alerts-card",
-    "ONVIF Motion: Alerts & snapshots",
-    "Snapshot, Telegram and WhatsApp switches for each camera.",
-    alertsConfig,
-    [CAMERAS_FIELD, TITLE_FIELD]
-  );
-  defineCard(
-    "onvif-motion-controls-card",
-    "ONVIF Motion: Camera controls",
-    "One camera: live view, pan/tilt/zoom, presets, spotlight, siren.",
-    controlsConfig,
-    [
-      { name: "camera", selector: { entity: { filter: { integration: DOMAIN, domain: "camera" } } } },
-      TITLE_FIELD,
-    ]
-  );
-  defineCard(
-    "onvif-motion-dashboard-card",
-    "ONVIF Motion: All cameras (full view)",
-    "Last Motion, Live, camera controls, Detections and Alerts in one card.",
-    dashboardConfig,
-    [CAMERAS_FIELD, COLUMNS_FIELD]
-  );
+  const CAMERA_FIELD = {
+    name: "camera",
+    selector: { entity: { filter: { integration: DOMAIN, domain: "camera" } } },
+  };
+  const LIVE_FIELD = { name: "show_live", selector: { boolean: {} } };
+  const cards = [
+    ["last-motion", "Recent motion", "Latest motion snapshot of each camera with its name and time.", lastMotionConfig, [CAMERAS_FIELD, TITLE_FIELD, COLUMNS_FIELD]],
+    ["live", "Live cameras", "Live view of each camera.", liveConfig, [CAMERAS_FIELD, TITLE_FIELD, COLUMNS_FIELD]],
+    ["detections", "Detections", "Last detection and today's count for each camera.", detectionsConfig, [CAMERAS_FIELD, TITLE_FIELD]],
+    ["notify", "Telegram & WhatsApp", "Telegram and WhatsApp alert switches for each camera.", notifyConfig, [CAMERAS_FIELD, TITLE_FIELD]],
+    ["snapshots", "Snapshots", "Snapshot-on-motion switch per camera (hold to take one now).", snapshotsConfig, [CAMERAS_FIELD, TITLE_FIELD, COLUMNS_FIELD]],
+    ["alerts", "Alerts & snapshots", "Connection status plus Snapshots, Telegram and WhatsApp switches per camera.", alertsConfig, [CAMERAS_FIELD, TITLE_FIELD]],
+    ["ptz", "PTZ control", "Pan / tilt / zoom pad and presets for one camera.", ptzConfig, [CAMERA_FIELD, LIVE_FIELD, TITLE_FIELD]],
+    ["settings", "Camera controls", "Spotlight, night vision, auto tracking, alarm and siren for one camera.", settingsConfig, [CAMERA_FIELD, TITLE_FIELD]],
+    ["controls", "360 / PTZ camera", "One camera complete: live view, PTZ pad, presets and all controls.", controlsConfig, [CAMERA_FIELD, TITLE_FIELD]],
+    ["dashboard", "All cameras (full view)", "Every section above in one card.", dashboardConfig, [CAMERAS_FIELD, COLUMNS_FIELD]],
+  ];
+  for (const [slug, name, description, build, schema] of cards) {
+    defineCard(`onvif-motion-${slug}-card`, `ONVIF Motion: ${name}`, description, build, schema);
+  }
   console.info(`%c ONVIF Motion cards %c ${VERSION} `, "background:#1565C0;color:#fff", "background:#FF9800;color:#000");
 }
