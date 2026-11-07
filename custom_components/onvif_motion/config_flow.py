@@ -45,6 +45,7 @@ from .const import (
     CONF_PROFILE_TOKEN,
     CONF_PROTOCOL,
     CONF_RTSP_TRANSPORT,
+    CONF_STREAM_URL,
     CONF_SNAPSHOT_COOLDOWN,
     CONF_SNAPSHOT_EVENTS,
     CONF_SNAPSHOT_KEEP,
@@ -268,6 +269,7 @@ class OnvifMotionOptionsFlow(OptionsFlow):
 
     def __init__(self) -> None:
         self._options: dict[str, Any] = {}
+        self._new_data: dict[str, Any] | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -276,13 +278,58 @@ class OnvifMotionOptionsFlow(OptionsFlow):
             self._options = dict(self.config_entry.options)
         return self.async_show_menu(
             step_id="init",
-            menu_options=["snapshots", "alerts", "telegram", "whatsapp", "save"],
+            menu_options=["connection", "snapshots", "alerts", "telegram", "whatsapp", "save"],
         )
 
     async def async_step_save(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        if self._new_data is not None:
+            self.hass.config_entries.async_update_entry(self.config_entry, data=self._new_data)
+            # New address or login: reconnect the camera.
+            self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
         return self.async_create_entry(data=self._options)
+
+    async def async_step_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """IP, port, protocol, login and RTSP settings."""
+        current = self._new_data or dict(self.config_entry.data)
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            data = {**current, **user_input}
+            if not user_input.get(CONF_PASSWORD):
+                data[CONF_PASSWORD] = current[CONF_PASSWORD]  # blank = keep
+            data[CONF_STREAM_URL] = (user_input.get(CONF_STREAM_URL) or "").strip()
+            errors, info, _ = await _validate(data)
+            if not errors and info and info.mac and self.config_entry.unique_id and (
+                format_mac(info.mac) != self.config_entry.unique_id
+            ):
+                errors["base"] = "different_camera"
+            if not errors:
+                self._new_data = data
+                return await self.async_step_init()
+            current = data
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_HOST, default=current[CONF_HOST]): str,
+                vol.Required(CONF_PORT, default=current[CONF_PORT]): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=65535)
+                ),
+                vol.Required(CONF_PROTOCOL, default=current.get(CONF_PROTOCOL, PROTOCOL_HTTP)): SelectSelector(
+                    SelectSelectorConfig(options=PROTOCOLS, mode=SelectSelectorMode.LIST, translation_key="protocol")
+                ),
+                vol.Required(CONF_USERNAME, default=current[CONF_USERNAME]): str,
+                vol.Optional(CONF_PASSWORD): PASSWORD,
+                vol.Required(CONF_RTSP_TRANSPORT, default=current.get(CONF_RTSP_TRANSPORT, "tcp")): SelectSelector(
+                    SelectSelectorConfig(options=RTSP_TRANSPORTS, mode=SelectSelectorMode.LIST, translation_key="rtsp_transport")
+                ),
+                vol.Optional(
+                    CONF_STREAM_URL, description={"suggested_value": current.get(CONF_STREAM_URL, "")}
+                ): str,
+            }
+        )
+        return self.async_show_form(step_id="connection", data_schema=schema, errors=errors)
 
     async def async_step_snapshots(
         self, user_input: dict[str, Any] | None = None

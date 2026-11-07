@@ -15,7 +15,8 @@ CONF_RTSP_TRANSPORT: Final = "rtsp_transport"
 PROTOCOL_HTTP: Final = "http"
 PROTOCOL_HTTPS: Final = "https"
 PROTOCOLS: Final = [PROTOCOL_HTTP, PROTOCOL_HTTPS]
-RTSP_TRANSPORTS: Final = ["tcp", "udp"]
+RTSP_TRANSPORTS: Final = ["tcp", "udp", "udp_multicast", "http"]
+CONF_STREAM_URL: Final = "stream_url"  # optional custom RTSP address
 
 DEFAULT_PORT: Final = 80
 DEFAULT_USERNAME: Final = "admin"

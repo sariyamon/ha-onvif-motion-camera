@@ -48,6 +48,7 @@ from .const import (
     CONF_EVENT_OFF_DELAY,
     CONF_PROFILE_TOKEN,
     CONF_PROTOCOL,
+    CONF_STREAM_URL,
     CONF_SNAPSHOT_COOLDOWN,
     CONF_SNAPSHOT_EVENTS,
     CONF_SNAPSHOT_KEEP,
@@ -280,7 +281,12 @@ class OnvifHub:
             tokens = [p["token"] for p in profiles]
             if self.profile_token not in tokens and tokens:
                 self.profile_token = tokens[0]
-            self.stream_uri = await self._read_stream_uri()
+            custom = (self.entry.data.get(CONF_STREAM_URL) or "").strip()
+            self.stream_uri = (
+                _with_credentials(custom, self.entry.data[CONF_USERNAME], self.entry.data[CONF_PASSWORD])
+                if custom
+                else await self._read_stream_uri()
+            )
             if any(p["ptz"] for p in profiles if p["token"] == self.profile_token):
                 ptz = OnvifPTZ(self.camera, self.profile_token)
                 if await ptz.setup():

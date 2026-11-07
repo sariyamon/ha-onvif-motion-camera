@@ -39,7 +39,7 @@ Copy `custom_components/onvif_motion` into your `/config/custom_components/` fol
 
 Next you pick the **stream profile** (main or sub stream) and **RTSP transport** (TCP or UDP). Done.
 
-Changed the camera's IP or password later? Use **⋮ → Reconfigure** on the integration — no need to delete it.
+Changed the camera's IP or password later? Open the camera's **Configure → Connection** (or **⋮ → Reconfigure**). There you can also pick the RTSP transport (TCP, UDP, UDP multicast or HTTP tunnel) and enter a custom RTSP address if the one the camera reports doesn't work.
 
 ## What you get (camera named "Gate")
 

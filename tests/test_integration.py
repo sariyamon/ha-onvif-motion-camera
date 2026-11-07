@@ -271,3 +271,41 @@ async def test_snapshot_falls_back_to_stream(hass: HomeAssistant, fake_camera) -
     fake_camera.get_snapshot.assert_not_called()
     assert fake_camera.get_snapshot_uri.call_count == 1  # remembered, not retried
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_options_connection(hass: HomeAssistant, fake_camera) -> None:
+    """IP, login and RTSP can be changed from Configure."""
+    entry = await _setup(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert "connection" in result["menu_options"]
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "connection"})
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_HOST: "192.168.31.150",
+            CONF_PORT: 2020,
+            CONF_PROTOCOL: "http",
+            CONF_USERNAME: "admin",
+            CONF_RTSP_TRANSPORT: "udp",
+            "stream_url": "rtsp://192.168.31.150:554/stream2",
+        },
+    )
+    assert result["type"] is FlowResultType.MENU
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "save"})
+    await hass.async_block_till_done()
+    assert entry.data[CONF_HOST] == "192.168.31.150"
+    assert entry.data[CONF_PASSWORD] == "secret"  # blank kept the old one
+    assert entry.data[CONF_RTSP_TRANSPORT] == "udp"
+    assert entry.runtime_data.stream_uri == "rtsp://admin:secret@192.168.31.150:554/stream2"
+
+    # A different camera at the new address is refused.
+    devicemgmt = await fake_camera.create_devicemgmt_service()
+    devicemgmt.GetNetworkInterfaces.return_value[0].Info.HwAddress = "11:22:33:44:55:66"
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "connection"})
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_HOST: "192.168.31.99", CONF_PORT: 2020, CONF_PROTOCOL: "http", CONF_USERNAME: "admin", CONF_RTSP_TRANSPORT: "tcp"},
+    )
+    assert result["errors"] == {"base": "different_camera"}
+    assert await hass.config_entries.async_unload(entry.entry_id)
