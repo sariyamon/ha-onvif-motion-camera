@@ -234,3 +234,22 @@ async def test_reconfigure(hass: HomeAssistant, fake_camera) -> None:
     )
     assert result["reason"] == "reconfigure_successful"
     assert entry.data[CONF_HOST] == "192.168.31.150"
+
+
+async def test_snapshot_falls_back_to_stream(hass: HomeAssistant, fake_camera) -> None:
+    """VIGI cameras have no ONVIF snapshot URL: grab a frame from RTSP."""
+    from unittest.mock import AsyncMock, patch
+
+    fake_camera.get_snapshot_uri = AsyncMock(return_value=None)
+    entry = await _setup(hass)
+    hub = entry.runtime_data
+    with patch(
+        "custom_components.onvif_motion.hub.ffmpeg.async_get_image",
+        AsyncMock(return_value=b"frame"),
+    ) as grab:
+        assert await hub.async_take_snapshot("manual") == b"frame"
+        assert grab.call_args.args[1] == "rtsp://admin:secret@192.168.31.101:554/stream1"
+        await hub.async_take_snapshot("manual")
+    fake_camera.get_snapshot.assert_not_called()
+    assert fake_camera.get_snapshot_uri.call_count == 1  # remembered, not retried
+    assert await hass.config_entries.async_unload(entry.entry_id)

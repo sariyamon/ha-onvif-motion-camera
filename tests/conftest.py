@@ -21,6 +21,7 @@ def _fake_camera() -> MagicMock:
     cam.update_xaddrs = AsyncMock()
     cam.close = AsyncMock()
     cam.get_snapshot = AsyncMock(return_value=JPEG)
+    cam.get_snapshot_uri = AsyncMock(return_value="http://192.168.31.101/snap.jpg")
 
     devicemgmt = MagicMock()
     devicemgmt.GetDeviceInformation = AsyncMock(

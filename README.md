@@ -4,13 +4,13 @@ A custom integration for any ONVIF camera that gives you, in one place:
 
 - **Live camera** (RTSP stream + still image)
 - **A sensor for every detection the camera reports** — motion, person, vehicle, pet, face, line crossing, intrusion, region enter/exit, loitering, tamper, audio, digital input and more, created automatically as the camera reports them
-- **Latest snapshot** taken on detection, kept across restarts, with its time — ready for a "Last Motion" dashboard
+- **Latest snapshot** taken on detection (from the camera's ONVIF snapshot URL, or straight from the video stream for cameras without one, such as TP-Link VIGI), kept across restarts, with its time — ready for a "Last Motion" dashboard
 - **Telegram and WhatsApp alerts built in** — snapshot attached, no Node-RED, no extra automations
 - Switches, buttons, services and bus events for your own automations
 
 Set-up is just: **IP, port, protocol, username, password.** Install the same integration on any other Home Assistant and add cameras the same way.
 
-Tested against TP-Link VIGI cameras (C340S, C540V); works with any camera that supports ONVIF Profile S events (Hikvision, Dahua, Reolink, Imou, Tapo, Uniview, Axis…).
+Tested against TP-Link VIGI cameras (C340, C340S, C340-W, C350, C540V); works with any camera that supports ONVIF Profile S events (Hikvision, Dahua, Reolink, Imou, Tapo, Uniview, Axis…).
 
 ---
 

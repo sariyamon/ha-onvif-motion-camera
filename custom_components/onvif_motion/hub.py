@@ -15,6 +15,7 @@ from onvif import ONVIFCamera
 from onvif.exceptions import ONVIFError
 from zeep.exceptions import Fault, TransportError
 
+from homeassistant.components import ffmpeg
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
@@ -240,6 +241,7 @@ class OnvifHub:
         self._last_snapshot_at: float = 0.0
         self._last_alert_at: float = 0.0
         self._snapshot_lock = asyncio.Lock()
+        self._onvif_snapshot: bool | None = None  # None = not tried yet
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
         )
@@ -553,15 +555,35 @@ class OnvifHub:
 
     # ------------------------------------------------------------- snapshots
     async def async_get_image(self) -> bytes | None:
-        """Fetch a fresh still from the camera."""
+        """Fetch a fresh still from the camera.
+
+        Uses the camera's ONVIF snapshot URL when it has one. Many cameras
+        (e.g. TP-Link VIGI) do not, so fall back to grabbing one frame from
+        the RTSP stream with Home Assistant's ffmpeg.
+        """
         if not self.camera or not self.profile_token:
             return None
-        try:
-            image = await self.camera.get_snapshot(self.profile_token)
-            if image is None:
-                image = await self.camera.get_snapshot(self.profile_token, basic_auth=True)
-        except CONNECT_ERRORS as err:
-            raise HomeAssistantError(f"Snapshot failed: {err}") from err
+        image: bytes | None = None
+        if self._onvif_snapshot is not False:
+            try:
+                uri = await self.camera.get_snapshot_uri(self.profile_token)
+                if uri is None:
+                    self._onvif_snapshot = False
+                    _LOGGER.debug("%s: no ONVIF snapshot URL, using the stream", self.name)
+                else:
+                    image = await self.camera.get_snapshot(self.profile_token)
+                    if image is None:
+                        image = await self.camera.get_snapshot(
+                            self.profile_token, basic_auth=True
+                        )
+                    if image:
+                        self._onvif_snapshot = True
+            except CONNECT_ERRORS as err:
+                _LOGGER.debug("%s: ONVIF snapshot failed: %s", self.name, err)
+        if not image and self.stream_uri:
+            image = await ffmpeg.async_get_image(self.hass, self.stream_uri)
+        if not image:
+            raise HomeAssistantError("Camera returned no snapshot image")
         return image
 
     async def async_take_snapshot(self, kind: str | None = "manual") -> bytes:

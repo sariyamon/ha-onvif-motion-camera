@@ -8,6 +8,9 @@
     "@sariyamon"
   ],
   "config_flow": true,
+  "dependencies": [
+    "ffmpeg"
+  ],
   "documentation": "https://github.com/sariyamon/ha-onvif-motion-camera",
   "integration_type": "device",
   "iot_class": "local_push",
@@ -19,5 +22,5 @@
   "requirements": [
     "onvif-zeep-async>=3.2.5"
   ],
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
