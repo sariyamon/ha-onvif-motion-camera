@@ -1,0 +1,213 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add an ONVIF camera",
+        "description": "Enter the camera's address and its ONVIF login. On TP-Link VIGI cameras the ONVIF port is usually 2020; on most others it is 80.",
+        "data": {
+          "name": "Camera name",
+          "host": "IP address or host name",
+          "port": "ONVIF port",
+          "protocol": "Protocol",
+          "username": "Username",
+          "password": "Password"
+        },
+        "data_description": {
+          "name": "Shown on the device and entities, e.g. Gate or Car Porch.",
+          "protocol": "Use HTTPS only if the camera's ONVIF service is set to HTTPS."
+        }
+      },
+      "stream": {
+        "title": "Video stream",
+        "description": "Pick the stream used for live view and snapshots. The main stream has the best quality; the sub stream is lighter on phones.",
+        "data": {
+          "profile_token": "Stream profile",
+          "rtsp_transport": "RTSP transport"
+        }
+      },
+      "reconfigure": {
+        "title": "Change camera connection",
+        "data": {
+          "host": "IP address or host name",
+          "port": "ONVIF port",
+          "protocol": "Protocol",
+          "username": "Username",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Log in to {name} again",
+        "description": "The camera rejected the saved login.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the camera's ONVIF service. Check the IP, port and protocol, and that ONVIF is enabled on the camera.",
+      "invalid_auth": "The camera rejected the username or password.",
+      "unknown": "Unexpected error, see the Home Assistant log."
+    },
+    "abort": {
+      "already_configured": "This camera is already added (its address has been updated).",
+      "reconfigure_successful": "Camera connection updated.",
+      "reauth_successful": "Login updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Camera settings",
+        "description": "Choose what to change, then press Save.",
+        "menu_options": {
+          "snapshots": "Snapshots",
+          "alerts": "Alert rules",
+          "telegram": "Telegram",
+          "whatsapp": "WhatsApp",
+          "save": "Save"
+        }
+      },
+      "snapshots": {
+        "title": "Snapshots",
+        "data": {
+          "snapshot_events": "Take a snapshot on",
+          "snapshot_cooldown": "Minimum time between snapshots",
+          "snapshot_keep": "Snapshots to keep",
+          "event_off_delay": "Keep event sensors on for at least"
+        },
+        "data_description": {
+          "snapshot_keep": "Older snapshot files are deleted. They are stored in /config/onvif_motion/.",
+          "event_off_delay": "0 = turn off as soon as the camera says the event ended."
+        }
+      },
+      "alerts": {
+        "title": "Alert rules",
+        "data": {
+          "alert_events": "Send an alert on",
+          "alert_cooldown": "Minimum time between alerts",
+          "alert_message": "Message"
+        },
+        "data_description": {
+          "alert_message": "You can use {camera}, {event}, {time} and {date}."
+        }
+      },
+      "telegram": {
+        "title": "Telegram",
+        "description": "Alerts are sent straight from Home Assistant to your Telegram bot, with the snapshot attached. Leave empty to turn Telegram off.",
+        "data": {
+          "telegram_bot_token": "Bot token",
+          "telegram_chat_ids": "Chat IDs"
+        },
+        "data_description": {
+          "telegram_bot_token": "From @BotFather, e.g. 123456:ABC-DEF…",
+          "telegram_chat_ids": "One or more chat or group IDs, separated by commas."
+        }
+      },
+      "whatsapp": {
+        "title": "WhatsApp",
+        "description": "Pick how WhatsApp messages are sent. Cloud API sends the snapshot as a photo; CallMeBot sends text only.",
+        "data": {
+          "whatsapp_provider": "Provider",
+          "whatsapp_recipients": "Phone numbers",
+          "whatsapp_access_token": "Cloud API access token",
+          "whatsapp_phone_number_id": "Cloud API phone number ID",
+          "whatsapp_callmebot_apikey": "CallMeBot API key",
+          "whatsapp_notify_action": "Notify action"
+        },
+        "data_description": {
+          "whatsapp_recipients": "With country code, separated by commas, e.g. +919876543210. Not needed for the notify action.",
+          "whatsapp_notify_action": "Only for 'Home Assistant notify action', e.g. notify.whatsapp."
+        }
+      }
+    }
+  },
+  "selector": {
+    "protocol": {
+      "options": {
+        "http": "HTTP",
+        "https": "HTTPS"
+      }
+    },
+    "rtsp_transport": {
+      "options": {
+        "tcp": "TCP (reliable)",
+        "udp": "UDP (lower delay)"
+      }
+    },
+    "whatsapp_provider": {
+      "options": {
+        "none": "Off",
+        "cloud_api": "WhatsApp Cloud API (Meta) – photo + text",
+        "callmebot": "CallMeBot – text only, free",
+        "ha_notify": "Home Assistant notify action"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "event_subscription": { "name": "Event subscription" }
+    },
+    "image": {
+      "last_snapshot": { "name": "Last snapshot" }
+    },
+    "sensor": {
+      "last_event_time": { "name": "Last detection" },
+      "last_snapshot_time": { "name": "Last snapshot time" },
+      "events_today": { "name": "Detections today" },
+      "last_event_type": {
+        "name": "Last detection type",
+        "state": {
+          "motion": "Motion",
+          "person": "Person",
+          "vehicle": "Vehicle",
+          "pet": "Pet",
+          "face": "Face",
+          "line_crossing": "Line crossing",
+          "intrusion": "Intrusion",
+          "region_entrance": "Region entrance",
+          "region_exit": "Region exit",
+          "loitering": "Loitering",
+          "tamper": "Tamper",
+          "image_too_dark": "Image too dark",
+          "image_too_bright": "Image too bright",
+          "image_too_blurry": "Image too blurry",
+          "scene_change": "Scene change",
+          "audio": "Audio",
+          "digital_input": "Digital input",
+          "relay": "Relay",
+          "storage_failure": "Storage failure",
+          "other": "Other event"
+        }
+      }
+    },
+    "switch": {
+      "snapshots": { "name": "Snapshots" },
+      "telegram_alerts": { "name": "Telegram alerts" },
+      "whatsapp_alerts": { "name": "WhatsApp alerts" }
+    },
+    "button": {
+      "take_snapshot": { "name": "Take snapshot" },
+      "test_alert": { "name": "Send test alert" }
+    }
+  },
+  "services": {
+    "take_snapshot": {
+      "name": "Take snapshot",
+      "description": "Save a snapshot now and make it the latest snapshot.",
+      "fields": {
+        "device_id": { "name": "Camera", "description": "The camera(s) to snapshot." }
+      }
+    },
+    "send_alert": {
+      "name": "Send alert",
+      "description": "Send a Telegram / WhatsApp alert, optionally with a fresh snapshot.",
+      "fields": {
+        "device_id": { "name": "Camera", "description": "The camera(s) to alert for." },
+        "message": { "name": "Message", "description": "Text to send. Leave empty for the default message." },
+        "attach_snapshot": { "name": "Attach snapshot", "description": "Take a snapshot and attach it." },
+        "channels": { "name": "Channels", "description": "Where to send." }
+      }
+    }
+  }
+}

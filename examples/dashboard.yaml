@@ -1,0 +1,68 @@
+# "Last Motion" grid — the same look as the srjhome dashboard:
+# latest snapshot full-bleed, camera name top-left, time bottom-left,
+# plain white text with a soft shadow (no dark boxes over the picture).
+#
+# Entity IDs assume a camera named "Gate"; change the prefix for others.
+# Tap opens the live camera.
+
+type: grid
+columns: 2
+square: false
+cards:
+  - type: picture-elements
+    image_entity: image.gate_last_snapshot
+    elements:
+      - type: state-label
+        entity: camera.gate
+        attribute: friendly_name
+        tap_action:
+          action: more-info
+          entity: camera.gate
+        style: &name_style
+          top: 8px
+          left: 8px
+          transform: none
+          color: white
+          background: none
+          font-size: 14px
+          font-weight: 600
+          white-space: nowrap
+          text-shadow: 0 0 4px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.9)
+      - type: state-label
+        entity: sensor.gate_last_snapshot_time
+        tap_action:
+          action: more-info
+          entity: camera.gate
+        style: &time_style
+          bottom: 8px
+          left: 8px
+          transform: none
+          color: white
+          background: none
+          font-size: 11px
+          white-space: nowrap
+          text-shadow: 0 0 4px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.9)
+
+  - type: picture-elements
+    image_entity: image.car_porch_last_snapshot
+    elements:
+      - type: state-label
+        entity: camera.car_porch
+        attribute: friendly_name
+        tap_action: { action: more-info, entity: camera.car_porch }
+        style: *name_style
+      - type: state-label
+        entity: sensor.car_porch_last_snapshot_time
+        tap_action: { action: more-info, entity: camera.car_porch }
+        style: *time_style
+
+# Per-camera alert toggles (replaces the old Telegram input_booleans):
+#
+# type: entities
+# title: Alerts
+# state_color: true
+# entities:
+#   - switch.gate_telegram_alerts
+#   - switch.gate_whatsapp_alerts
+#   - switch.car_porch_telegram_alerts
+#   - switch.car_porch_whatsapp_alerts

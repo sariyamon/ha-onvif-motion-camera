@@ -1,0 +1,35 @@
+take_snapshot:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: onvif_motion
+          multiple: true
+
+send_alert:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: onvif_motion
+          multiple: true
+    message:
+      example: "Someone is at the gate"
+      selector:
+        text:
+    attach_snapshot:
+      default: true
+      selector:
+        boolean:
+    channels:
+      default:
+        - telegram
+        - whatsapp
+      selector:
+        select:
+          multiple: true
+          options:
+            - telegram
+            - whatsapp

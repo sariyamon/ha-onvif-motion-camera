@@ -1,0 +1,62 @@
+# Example automations using ONVIF Motion & Snapshot entities and events.
+
+# 1) Turn on the porch light when a person is seen at night.
+- alias: Gate – person at night turns on porch light
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.gate_person
+      to: "on"
+  conditions:
+    - condition: sun
+      after: sunset
+      before: sunrise
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id: light.car_porch
+  mode: restart
+
+# 2) React to any detection from any camera via the bus event.
+#    event_data: entry_id, camera, event (motion/person/vehicle/…),
+#    name, active, topic, source
+- alias: Any camera – vehicle detected
+  triggers:
+    - trigger: event
+      event_type: onvif_motion_event
+      event_data:
+        event: vehicle
+        active: true
+  actions:
+    - action: persistent_notification.create
+      data:
+        title: Vehicle
+        message: "Vehicle at {{ trigger.event.data.camera }}"
+  mode: queued
+
+# 3) Send a custom alert with a fresh snapshot (Telegram + WhatsApp).
+- alias: Gate – custom alert when the gate opens
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.gate_contact
+      to: "on"
+  actions:
+    - action: onvif_motion.send_alert
+      data:
+        device_id: REPLACE_WITH_GATE_DEVICE_ID
+        message: "Gate opened"
+        attach_snapshot: true
+        channels: [telegram]
+  mode: single
+
+# 4) Mute alerts while someone is home.
+- alias: Mute camera alerts when home
+  triggers:
+    - trigger: state
+      entity_id: person.owner
+  actions:
+    - action: "switch.turn_{{ 'off' if trigger.to_state.state == 'home' else 'on' }}"
+      target:
+        entity_id:
+          - switch.gate_telegram_alerts
+          - switch.gate_whatsapp_alerts
+  mode: restart

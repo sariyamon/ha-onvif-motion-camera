@@ -1,0 +1,23 @@
+{
+  "domain": "onvif_motion",
+  "name": "ONVIF Motion & Snapshot",
+  "after_dependencies": [
+    "stream"
+  ],
+  "codeowners": [
+    "@sariyamon"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/sariyamon/ha-onvif-motion-camera",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/sariyamon/ha-onvif-motion-camera/issues",
+  "loggers": [
+    "onvif",
+    "zeep"
+  ],
+  "requirements": [
+    "onvif-zeep-async>=3.2.5"
+  ],
+  "version": "1.0.0"
+}
