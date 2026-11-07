@@ -8,6 +8,7 @@ A custom integration for any ONVIF camera that gives you, in one place:
 - **Telegram and WhatsApp alerts built in** — snapshot attached, no Node-RED, no extra automations
 - **Camera controls**: pan / tilt / zoom buttons and preset positions for any ONVIF PTZ camera
 - **TP-Link VIGI extras** (found automatically): spotlight, night-vision mode, siren & alarm light, motion / person / vehicle / tamper detection on-off, motion sensitivity, auto tracking, status LED, speaker and microphone
+- **Ready-made dashboard cards** — Last Motion, Live, camera controls, Detections, Alerts & snapshots — added from the card picker, no YAML, no extra download
 - Switches, buttons, services and bus events for your own automations
 
 Set-up is just: **IP, port, protocol, username, password.** Install the same integration on any other Home Assistant and add cameras the same way.
@@ -109,9 +110,38 @@ Services:
 
 More in [`examples/automations.yaml`](examples/automations.yaml).
 
-## Dashboard
+## Dashboard cards
 
-[`examples/dashboard.yaml`](examples/dashboard.yaml) has a "Last Motion" grid: latest snapshot full-bleed with the camera name and time as plain white text over the picture, tap to open the live view.
+The integration ships its own cards and loads them for you, so there is no resource to add and nothing to download from HACS. After installing (and restarting once):
+
+**Edit dashboard → Add card → search "ONVIF Motion"**
+
+| Card | Shows |
+| --- | --- |
+| **ONVIF Motion: Last Motion** | Latest snapshot of each camera, name and time as plain text over the picture; tap for the live view |
+| **ONVIF Motion: Live** | Live view of each camera |
+| **ONVIF Motion: Camera controls** | One camera: live view, pan / tilt / zoom pad, presets, spotlight, night vision, auto tracking, alarm, siren (with confirmation), take snapshot. Only the controls the camera has are shown |
+| **ONVIF Motion: Detections** | Last detection (type + how long ago) and today's count for each camera |
+| **ONVIF Motion: Alerts & snapshots** | Per camera: connection status, Snapshots / Telegram / WhatsApp switches |
+| **ONVIF Motion: All cameras (full view)** | All of the above in one card, a whole camera tab in one go |
+
+The cards find your cameras on their own, and new cameras show up without editing anything. Every card has a visual editor for picking cameras, the title and the number of columns. They are built from standard Home Assistant cards, so they follow your theme. In YAML:
+
+```yaml
+type: custom:onvif-motion-last-motion-card
+cameras: [camera.gate, camera.car_porch]   # optional: default is all, A–Z
+columns: 2                                 # optional
+title: Last Motion                         # optional, false hides the heading
+```
+
+```yaml
+type: custom:onvif-motion-controls-card
+camera: camera.outdoor_360                 # optional: default is the first PTZ camera
+```
+
+Other types: `custom:onvif-motion-live-card`, `custom:onvif-motion-detections-card`, `custom:onvif-motion-alerts-card`, `custom:onvif-motion-dashboard-card`.
+
+Prefer plain cards? [`examples/dashboard.yaml`](examples/dashboard.yaml) has the same "Last Motion" grid in core-card YAML.
 
 ## Replacing a Node-RED + local_file setup
 

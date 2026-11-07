@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import voluptuous as vol
 
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_DEVICE_ID, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
@@ -40,6 +43,9 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
 ]
 
+CARDS_URL = "/onvif_motion/onvif-motion-cards.js"
+CARDS_FILE = Path(__file__).parent / "frontend" / "onvif-motion-cards.js"
+
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type OnvifMotionConfigEntry = ConfigEntry[OnvifHub]
@@ -58,7 +64,8 @@ ALERT_SCHEMA = vol.Schema(
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Register services once."""
+    """Register services and the dashboard cards once."""
+    await _async_register_cards(hass)
 
     def _hubs(call: ServiceCall) -> list[OnvifHub]:
         registry = dr.async_get(hass)
@@ -106,6 +113,28 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     )
     hass.services.async_register(DOMAIN, SERVICE_SEND_ALERT, send_alert, schema=ALERT_SCHEMA)
     return True
+
+
+async def _async_register_cards(hass: HomeAssistant) -> None:
+    """Serve the ready-made Lovelace cards and load them in every dashboard."""
+    if (
+        hass.data.get(f"{DOMAIN}_cards")
+        or "frontend" not in hass.config.components
+        or not getattr(hass, "http", None)
+    ):
+        return
+    hass.data[f"{DOMAIN}_cards"] = True
+    version = await hass.async_add_executor_job(_manifest_version)
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CARDS_URL, str(CARDS_FILE), True)]
+    )
+    add_extra_js_url(hass, f"{CARDS_URL}?v={version}")
+
+
+def _manifest_version() -> str:
+    import json
+
+    return json.loads((Path(__file__).parent / "manifest.json").read_text())["version"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: OnvifMotionConfigEntry) -> bool:
