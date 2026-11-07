@@ -47,7 +47,9 @@ from .const import (
     CONF_ALERT_MESSAGE,
     CONF_EVENT_OFF_DELAY,
     CONF_PROFILE_TOKEN,
+    CONF_CONNECTION_TYPE,
     CONF_PROTOCOL,
+    CONN_ONVIF,
     CONF_STREAM_URL,
     CONF_SNAPSHOT_COOLDOWN,
     CONF_SNAPSHOT_EVENTS,
@@ -270,9 +272,28 @@ class OnvifHub:
     def unique_id(self) -> str:
         return self.entry.unique_id or self.entry.entry_id
 
+    @property
+    def is_onvif(self) -> bool:
+        return self.entry.data.get(CONF_CONNECTION_TYPE, CONN_ONVIF) == CONN_ONVIF
+
+    def rtsp_url(self) -> str:
+        """The stream address with the login filled in."""
+        return _with_credentials(
+            (self.entry.data.get(CONF_STREAM_URL) or "").strip(),
+            self.entry.data[CONF_USERNAME],
+            self.entry.data[CONF_PASSWORD],
+        )
+
     async def async_setup(self) -> None:
         """Connect to the camera. Raises CannotConnect / InvalidAuth."""
         await self._load_store()
+        if not self.is_onvif:
+            # RTSP only: video and snapshots straight from the stream.
+            self.info = DeviceInfo(manufacturer="RTSP camera", model="Camera")
+            self.stream_uri = self.rtsp_url()
+            if not await ffmpeg.async_get_image(self.hass, self.stream_uri):
+                raise CannotConnect("No picture from the RTSP stream")
+            return
         self.camera = make_camera(dict(self.entry.data))
         try:
             await self.camera.update_xaddrs()
@@ -629,10 +650,8 @@ class OnvifHub:
         (e.g. TP-Link VIGI) do not, so fall back to grabbing one frame from
         the RTSP stream with Home Assistant's ffmpeg.
         """
-        if not self.camera or not self.profile_token:
-            return None
         image: bytes | None = None
-        if self._onvif_snapshot is not False:
+        if self.camera and self.profile_token and self._onvif_snapshot is not False:
             try:
                 uri = await self.camera.get_snapshot_uri(self.profile_token)
                 if uri is None:

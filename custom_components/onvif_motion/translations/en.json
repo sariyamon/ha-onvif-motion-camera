@@ -2,19 +2,11 @@
   "config": {
     "step": {
       "user": {
-        "title": "Add an ONVIF camera",
-        "description": "Enter the camera's address and its ONVIF login. On TP-Link VIGI cameras the ONVIF port is usually 2020; on most others it is 80.",
-        "data": {
-          "name": "Camera name",
-          "host": "IP address or host name",
-          "port": "ONVIF port",
-          "protocol": "Protocol",
-          "username": "Username",
-          "password": "Password"
-        },
-        "data_description": {
-          "name": "Shown on the device and entities, e.g. Gate or Car Porch.",
-          "protocol": "Use HTTPS only if the camera's ONVIF service is set to HTTPS."
+        "title": "Add a camera",
+        "description": "How should Home Assistant talk to the camera?",
+        "menu_options": {
+          "onvif": "ONVIF (recommended) – live view, snapshots, motion/person/vehicle detection, PTZ",
+          "rtsp": "RTSP only – live view and snapshots, for cameras without ONVIF"
         }
       },
       "stream": {
@@ -32,7 +24,9 @@
           "port": "ONVIF port",
           "protocol": "Protocol",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "stream_url": "RTSP address",
+          "rtsp_transport": "RTSP transport"
         }
       },
       "reauth_confirm": {
@@ -42,12 +36,44 @@
           "username": "Username",
           "password": "Password"
         }
+      },
+      "onvif": {
+        "title": "Add an ONVIF camera",
+        "description": "Enter the camera's address and its ONVIF login. On TP-Link VIGI cameras the ONVIF port is usually 2020; on most others it is 80.",
+        "data": {
+          "name": "Camera name",
+          "host": "IP address or host name",
+          "port": "ONVIF port",
+          "protocol": "Protocol",
+          "username": "Username",
+          "password": "Password"
+        },
+        "data_description": {
+          "name": "Shown on the device and entities, e.g. Gate or Car Porch.",
+          "protocol": "Use HTTPS only if the camera's ONVIF service is set to HTTPS."
+        }
+      },
+      "rtsp": {
+        "title": "Add an RTSP camera",
+        "description": "Enter the camera's RTSP address. A frame is grabbed from the stream to check it before the camera is added. Detection events need ONVIF, except on TP-Link VIGI cameras, which send them over their own push channel.",
+        "data": {
+          "name": "Camera name",
+          "stream_url": "RTSP address",
+          "username": "Username",
+          "password": "Password",
+          "rtsp_transport": "RTSP transport"
+        },
+        "data_description": {
+          "stream_url": "e.g. rtsp://192.168.31.101:554/stream1 – leave the login out, it is added for you."
+        }
       }
     },
     "error": {
       "cannot_connect": "Could not reach the camera's ONVIF service. Check the IP, port and protocol, and that ONVIF is enabled on the camera.",
       "invalid_auth": "The camera rejected the username or password.",
-      "unknown": "Unexpected error, see the Home Assistant log."
+      "unknown": "Unexpected error, see the Home Assistant log.",
+      "cannot_connect_rtsp": "No picture from that RTSP address. Check the address, login and transport (try TCP).",
+      "not_rtsp": "Enter an address starting with rtsp://"
     },
     "abort": {
       "already_configured": "This camera is already added (its address has been updated).",
@@ -125,20 +151,24 @@
       },
       "connection": {
         "title": "Connection",
-        "description": "Change the camera's address, login or video stream. The camera is checked before saving and reconnects when you press Save.",
+        "description": "Pick how Home Assistant talks to the camera, then fill in its address and login. ONVIF uses the IP, port and protocol; RTSP only uses the RTSP address. The camera is checked before saving and reconnects when you press Save.",
         "data": {
+          "connection_type": "Connection type",
           "host": "IP address or host name",
           "port": "ONVIF port",
           "protocol": "Protocol",
           "username": "Username",
           "password": "New password",
           "rtsp_transport": "RTSP transport",
-          "stream_url": "Custom RTSP address"
+          "stream_url": "RTSP address"
         },
         "data_description": {
+          "connection_type": "ONVIF: live view, snapshots, detection events and PTZ. RTSP only: live view and snapshots (plus events on TP-Link VIGI).",
+          "host": "For ONVIF.",
+          "port": "ONVIF port (2020 on TP-Link VIGI, usually 80 elsewhere). For ONVIF.",
           "password": "Leave empty to keep the current password.",
           "rtsp_transport": "TCP is the most reliable. Try UDP for lower delay, or HTTP if the stream drops through a firewall.",
-          "stream_url": "Optional. Leave empty to use the address the camera reports, e.g. rtsp://192.168.31.101:554/stream1. Login is added automatically."
+          "stream_url": "Required for RTSP only. With ONVIF, leave empty to use the address the camera reports. e.g. rtsp://192.168.31.101:554/stream1 – the login is added for you."
         }
       }
     },
@@ -146,7 +176,10 @@
       "cannot_connect": "Could not reach the camera's ONVIF service. Check the IP, port and protocol, and that ONVIF is enabled on the camera.",
       "invalid_auth": "The camera rejected the username or password.",
       "unknown": "Unexpected error, see the Home Assistant log.",
-      "different_camera": "A different camera answers at this address. Add it as a new camera instead."
+      "different_camera": "A different camera answers at this address. Add it as a new camera instead.",
+      "cannot_connect_rtsp": "No picture from that RTSP address. Check the address, login and transport (try TCP).",
+      "needs_stream_url": "RTSP only needs an RTSP address starting with rtsp://",
+      "needs_host": "ONVIF needs the camera's IP address."
     }
   },
   "selector": {
@@ -170,6 +203,12 @@
         "cloud_api": "WhatsApp Cloud API (Meta) – photo + text",
         "callmebot": "CallMeBot – text only, free",
         "ha_notify": "Home Assistant notify action"
+      }
+    },
+    "connection_type": {
+      "options": {
+        "onvif": "ONVIF (recommended)",
+        "rtsp": "RTSP only"
       }
     }
   },

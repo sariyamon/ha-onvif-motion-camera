@@ -27,7 +27,17 @@ Tested against TP-Link VIGI cameras (C340, C340S, C340-W, C350, C540V); works wi
 Copy `custom_components/onvif_motion` into your `/config/custom_components/` folder and restart.
 
 ## Add a camera
-**Settings → Devices & services → Add integration → ONVIF Motion & Snapshot**
+**Settings → Devices & services → Add integration → ONVIF Motion & Snapshot**, then choose how to connect:
+
+| | **ONVIF** (recommended) | **RTSP only** |
+|---|---|---|
+| You enter | IP, ONVIF port, HTTP/HTTPS, login | RTSP address, login, transport |
+| Live view & snapshots | ✅ | ✅ |
+| Motion / person / vehicle sensors and alerts | ✅ | TP-Link VIGI only (push channel) |
+| PTZ, presets, restart button | ✅ | – |
+| TP-Link VIGI extras (spotlight, siren…) | ✅ | ✅ |
+
+**ONVIF**
 
 | Field | Example | Notes |
 |---|---|---|
@@ -37,9 +47,11 @@ Copy `custom_components/onvif_motion` into your `/config/custom_components/` fol
 | Protocol | HTTP | HTTPS only if the camera's ONVIF service uses it |
 | Username / password | admin / •••• | The camera's ONVIF (or admin) login |
 
-Next you pick the **stream profile** (main or sub stream) and **RTSP transport** (TCP or UDP). Done.
+Next you pick the **stream profile** (main or sub stream) and **RTSP transport**.
 
-Changed the camera's IP or password later? Open the camera's **Configure → Connection** (or **⋮ → Reconfigure**). There you can also pick the RTSP transport (TCP, UDP, UDP multicast or HTTP tunnel) and enter a custom RTSP address if the one the camera reports doesn't work.
+**RTSP only** – for cameras without ONVIF. Enter the RTSP address (e.g. `rtsp://192.168.31.120:554/stream1`), login and transport; a frame is grabbed from the stream to check it before the camera is added.
+
+**Change it later** – open the camera's **Configure → Connection**. You can switch between ONVIF and RTSP only, change the IP, port, protocol, login, RTSP transport (TCP, UDP, UDP multicast, HTTP tunnel) or set a custom RTSP address. The camera is checked before saving and keeps its entities and history.
 
 ## What you get (camera named "Gate")
 

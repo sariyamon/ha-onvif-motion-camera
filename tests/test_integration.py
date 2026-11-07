@@ -48,6 +48,9 @@ async def test_config_flow(hass: HomeAssistant, fake_camera) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == ["onvif", "rtsp"]
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"next_step_id": "onvif"})
     assert result["type"] is FlowResultType.FORM
     result = await hass.config_entries.flow.async_configure(result["flow_id"], USER_INPUT)
     assert result["type"] is FlowResultType.FORM
@@ -71,6 +74,7 @@ async def test_config_flow_bad_auth(hass: HomeAssistant, fake_camera) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"next_step_id": "onvif"})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], USER_INPUT)
     assert result["errors"] == {"base": "invalid_auth"}
 

@@ -17,6 +17,11 @@ PROTOCOL_HTTPS: Final = "https"
 PROTOCOLS: Final = [PROTOCOL_HTTP, PROTOCOL_HTTPS]
 RTSP_TRANSPORTS: Final = ["tcp", "udp", "udp_multicast", "http"]
 CONF_STREAM_URL: Final = "stream_url"  # optional custom RTSP address
+CONF_CONNECTION_TYPE: Final = "connection_type"
+CONN_ONVIF: Final = "onvif"  # full: events, PTZ, discovery
+CONN_RTSP: Final = "rtsp"  # video only (plus VIGI extras when available)
+CONNECTION_TYPES: Final = [CONN_ONVIF, CONN_RTSP]
+DEFAULT_RTSP_PORT: Final = 554
 
 DEFAULT_PORT: Final = 80
 DEFAULT_USERNAME: Final = "admin"

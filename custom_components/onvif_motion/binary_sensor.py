@@ -83,7 +83,9 @@ async def async_setup_entry(
 
     # Re-create sensors seen before a restart so automations never lose them,
     # even if the camera only reports an event when it first happens.
-    restored: list[BinarySensorEntity] = [EventSubscriptionSensor(hub)]
+    restored: list[BinarySensorEntity] = (
+        [EventSubscriptionSensor(hub)] if hub.is_onvif or hub.vigi else []
+    )
     registry = er.async_get(hass)
     prefix = f"{hub.unique_id}_event_"
     for reg in er.async_entries_for_config_entry(registry, entry.entry_id):

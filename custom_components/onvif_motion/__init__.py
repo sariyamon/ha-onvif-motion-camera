@@ -122,7 +122,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: OnvifMotionConfigEntry) 
     # detection switches…). Other brands simply skip this.
     hub.vigi = await async_probe_vigi(hass, entry)
     if hub.vigi:
-        hub.start_push_fallback()
+        # RTSP-only cameras have no ONVIF events: use VIGI push straight away.
+        hub.start_push_fallback(delay=90 if hub.is_onvif else 0)
 
     entry.runtime_data = hub
     # Options (snapshot rules, Telegram, WhatsApp) are read live by the hub,

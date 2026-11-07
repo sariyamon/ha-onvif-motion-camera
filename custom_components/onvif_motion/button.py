@@ -18,7 +18,9 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     hub = entry.runtime_data
-    entities: list[ButtonEntity] = [SnapshotButton(hub), TestAlertButton(hub), RebootButton(hub)]
+    entities: list[ButtonEntity] = [SnapshotButton(hub), TestAlertButton(hub)]
+    if hub.is_onvif:
+        entities.append(RebootButton(hub))
     if hub.ptz:
         entities.extend(PTZButton(hub, *spec) for spec in PTZ_BUTTONS)
     if hub.vigi and (hub.vigi.data or {}).get("alarm"):
