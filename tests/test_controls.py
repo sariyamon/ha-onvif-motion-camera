@@ -115,3 +115,25 @@ async def test_telegram_via_home_assistant_bot(hass: HomeAssistant, fake_camera)
     assert calls[0]["file"] == hub.snapshot.path
     assert hub.snapshot.path.startswith(hass.config.media_dirs.get("local") or hass.config.path("media"))
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_vigi_push_events(hass: HomeAssistant, fake_camera) -> None:
+    """Detections from the VIGI push stream behave like ONVIF ones."""
+    from custom_components.onvif_motion.vigi_events import push_event
+
+    entry = await _setup(hass)
+    hub = entry.runtime_data
+    hub.push_connected(True)
+    hub.process_push_event(push_event("PeopleDetection", "Gate area"))
+    await hass.async_block_till_done()
+
+    state = hass.states.get("binary_sensor.gate_person")
+    assert state is not None and state.state == "on"
+    assert state.attributes["source"] == "Gate area"
+    assert hass.states.get("sensor.gate_last_detection_type").state == "person"
+    assert hub.trigger_count == 1 and hub.snapshot.path is not None
+    assert hass.states.get("binary_sensor.gate_event_subscription").state == "on"
+
+    assert push_event("CrossLineDetection", None).kind == "line_crossing"
+    assert push_event("DropAndTakeDetection", None).name == "Object left / taken"
+    assert await hass.config_entries.async_unload(entry.entry_id)

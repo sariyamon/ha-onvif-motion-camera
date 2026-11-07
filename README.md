@@ -117,6 +117,7 @@ Add the camera here, check the new entities work, then turn off the old flows.
 
 ## Troubleshooting
 
+- **A VIGI camera shows no detections** – some models (e.g. the C540V PTZ) never send events over ONVIF. The integration notices this after about 90 seconds and switches that camera to TP-Link's own push channel (port 20443). Make sure **Push Notifications** is on for each detection type in the VIGI app.
 - **Cannot connect** – check the ONVIF port (2020 on TP-Link), that ONVIF is enabled in the camera's web UI, and that the camera's clock is roughly right.
 - **No event sensors** – `binary_sensor.<name>_event_subscription` should be on. Make sure motion/smart detection is enabled in the camera itself.
 - **Debug log**:

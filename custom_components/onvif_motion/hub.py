@@ -257,6 +257,8 @@ class OnvifHub:
         self.snapshot_dir = Path(media_root, SNAPSHOT_DIR, entry.entry_id)
         self.ptz: OnvifPTZ | None = None
         self.vigi: Any = None  # VigiCoordinator when the camera has VIGI controls
+        self.push_active = False  # VIGI push-event stream connected
+        self._push_task: asyncio.Task | None = None
 
     # ------------------------------------------------------------------ setup
     @property
@@ -303,6 +305,8 @@ class OnvifHub:
         if self._event_task:
             self._event_task.cancel()
         await self._stop_manager()
+        if self._push_task:
+            self._push_task.cancel()
         if self.vigi:
             await self.vigi.api.close()
         if self.camera:
@@ -428,6 +432,41 @@ class OnvifHub:
                 await asyncio.wait_for(self._stop.wait(), RETRY_DELAY)
             except TimeoutError:
                 pass
+
+    # ------------------------------------------------------- VIGI push events
+    def start_push_fallback(self, delay: float = 90) -> None:
+        """Use the VIGI push stream if the ONVIF feed stays silent.
+
+        Most VIGI cameras answer an ONVIF subscription with their current
+        states at once; some (C540V PTZ) never send anything on it and only
+        report detections on TP-Link's own push channel.
+        """
+
+        async def _watch() -> None:
+            from .vigi_api import VigiPushAPI  # noqa: PLC0415
+            from .vigi_events import VigiPushListener  # noqa: PLC0415
+
+            await asyncio.sleep(delay)
+            if any(not uid.startswith("vigi_push|") for uid in self.events):
+                return  # ONVIF works for this camera
+            _LOGGER.info("%s: no ONVIF events, using VIGI push events", self.name)
+            host = self.entry.data[CONF_HOST].removeprefix("https://").removeprefix("http://")
+            api = VigiPushAPI(host, self.entry.data[CONF_USERNAME], self.entry.data[CONF_PASSWORD])
+            await VigiPushListener(self, api).run()
+
+        self._push_task = self.entry.async_create_background_task(
+            self.hass, _watch(), f"{DOMAIN} push {self.name}"
+        )
+
+    @callback
+    def push_connected(self, connected: bool) -> None:
+        self.push_active = connected
+        self._signal_update()
+
+    @callback
+    def process_push_event(self, event: ParsedEvent) -> None:
+        self.process_event(event)
+        self._signal_update()
 
     @callback
     def _handle_events(self, events: list[ParsedEvent]) -> None:

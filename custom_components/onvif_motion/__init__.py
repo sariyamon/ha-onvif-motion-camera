@@ -121,6 +121,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: OnvifMotionConfigEntry) 
     # TP-Link VIGI cameras also get their own settings (spotlight, siren,
     # detection switches…). Other brands simply skip this.
     hub.vigi = await async_probe_vigi(hass, entry)
+    if hub.vigi:
+        hub.start_push_fallback()
 
     entry.runtime_data = hub
     # Options (snapshot rules, Telegram, WhatsApp) are read live by the hub,

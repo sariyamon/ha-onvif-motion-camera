@@ -213,3 +213,67 @@ class VigiCamera:
 
     async def alarm(self, start: bool) -> None:
         await self.do("msg_alarm", {"manual_msg_alarm": {"action": "start" if start else "stop"}})
+
+
+# ── Push events (OpenAPI on port 20443) ─────────────────────────────────────
+# Some VIGI models (e.g. the C540V PTZ) report detections only here, not over
+# ONVIF. Auth is a two-step SHA-256 digest; each call needs a new connection.
+
+OPENAPI_PORT = 20443
+
+PUSH_EVENT_KINDS: dict[str, str] = {
+    "MotionDetection": "motion",
+    "PeopleDetection": "person",
+    "VehicleDetection": "vehicle",
+    "TamperDetection": "tamper",
+    "CrossLineDetection": "line_crossing",
+    "InvasionDetection": "intrusion",
+    "AreaEntryDetection": "region_entrance",
+    "AreaLeaveDetection": "region_exit",
+    "LoiterDetection": "loitering",
+    "SceneChangeDetection": "scene_change",
+    "AudioAnomalyDetection": "audio",
+    "DropAndTakeDetection": "other",
+}
+
+
+class VigiPushAPI:
+    """Login for the OpenAPI push stream."""
+
+    def __init__(self, host: str, username: str, password: str) -> None:
+        self.host = host
+        self._username = username
+        self._password = password
+        self._base = f"https://{host}:{OPENAPI_PORT}"
+        self.ssl = _ssl_context()
+
+    @staticmethod
+    def _sha256(text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    async def _post(self, url: str, body: dict) -> dict:
+        try:
+            async with aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(ssl=self.ssl, force_close=True),
+                timeout=_TIMEOUT,
+            ) as session, session.post(url, json=body) as resp:
+                return await resp.json(content_type=None)
+        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+            raise VigiError(f"{self.host}: {err}") from err
+
+    async def stream_url(self) -> str:
+        """Log in and return the authenticated base URL."""
+        first = await self._post(self._base, {"method": "doAuth", "params": None})
+        auth = first.get("authenticate") or {}
+        realm = auth.get("realm", "TP-LINK IP-Camera")
+        nonce = auth.get("nonce", "")
+        a1 = self._sha256(f"{self._username}:{realm}:{self._password}")
+        a2 = self._sha256(f"{auth.get('method', 'POST')}:{auth.get('uri', 'doAuth')}")
+        second = await self._post(
+            self._base,
+            {"method": "doAuth", "params": {"nonce": nonce, "response": self._sha256(f"{a1}:{nonce}:{a2}")}},
+        )
+        stok = second.get("stok")
+        if not stok:
+            raise VigiAuthError(f"{self.host}: push login refused ({second.get('errCode')})")
+        return f"{self._base}/stok={stok}"

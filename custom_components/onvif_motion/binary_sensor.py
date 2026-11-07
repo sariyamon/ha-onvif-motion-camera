@@ -144,7 +144,7 @@ class OnvifEventSensor(OnvifMotionEntity, BinarySensorEntity, RestoreEntity):
 
     @property
     def available(self) -> bool:
-        return self.hub.subscribed or self._uid in self.hub.events
+        return self.hub.subscribed or self.hub.push_active or self._uid in self.hub.events
 
     @property
     def is_on(self) -> bool | None:
@@ -183,5 +183,9 @@ class EventSubscriptionSensor(OnvifMotionEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return self.hub.subscribed
+        return self.hub.subscribed or self.hub.push_active
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"onvif_events": self.hub.subscribed, "vigi_push_events": self.hub.push_active}
 
