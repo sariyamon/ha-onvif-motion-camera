@@ -18,6 +18,8 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # Repo description/topics are set on GitHub; brand icon not submitted yet.
+          ignore: brands description topics
 
   tests:
     runs-on: ubuntu-latest
@@ -26,5 +28,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install pytest
-      - run: pytest -q tests/test_parsers.py
+      - run: pip install pytest-homeassistant-custom-component onvif-zeep-async PyTurboJPEG av numpy Pillow
+      - run: pytest -q
