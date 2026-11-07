@@ -78,7 +78,7 @@
           "event_off_delay": "Keep event sensors on for at least"
         },
         "data_description": {
-          "snapshot_keep": "Older snapshot files are deleted. They are stored in /config/onvif_motion/.",
+          "snapshot_keep": "Older snapshot files are deleted. They are stored in your Media folder under onvif_motion, so you can also browse them in Media.",
           "event_off_delay": "0 = turn off as soon as the camera says the event ended."
         }
       },
