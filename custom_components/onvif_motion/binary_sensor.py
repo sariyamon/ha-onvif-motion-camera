@@ -87,7 +87,11 @@ async def async_setup_entry(
     registry = er.async_get(hass)
     prefix = f"{hub.unique_id}_event_"
     for reg in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if reg.domain == "binary_sensor" and reg.unique_id.startswith(prefix):
+        if (
+            reg.domain == "binary_sensor"
+            and reg.unique_id.startswith(prefix)
+            and reg.unique_id != f"{hub.unique_id}_event_subscription"
+        ):
             uid = reg.unique_id[len(prefix):]
             known.add(uid)
             restored.append(OnvifEventSensor(hub, uid, reg.original_name, None))

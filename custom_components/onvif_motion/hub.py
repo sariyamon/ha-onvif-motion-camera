@@ -242,6 +242,10 @@ class OnvifHub:
         self._last_alert_at: float = 0.0
         self._snapshot_lock = asyncio.Lock()
         self._onvif_snapshot: bool | None = None  # None = not tried yet
+        # Cameras report current states as "Initialized" right after we
+        # subscribe; some (TP-Link VIGI) keep using that tag for live events.
+        # Only treat it as startup state inside this short window.
+        self._initial_until: float = 0.0
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
         )
@@ -377,6 +381,7 @@ class OnvifHub:
                     SUBSCRIPTION_INTERVAL, self._subscription_lost
                 )
                 self.supports_events = True
+                self._initial_until = self.hass.loop.time() + 10
                 try:
                     await self._manager.set_synchronization_point()
                 except CONNECT_ERRORS:
@@ -450,8 +455,13 @@ class OnvifHub:
             if event.momentary:
                 self._schedule_off(event.uid, MOMENTARY_RESET)
 
+        initial = event.is_initial and self.hass.loop.time() < self._initial_until
+        _LOGGER.debug(
+            "%s: %s %s -> %s (%s)",
+            self.name, event.kind, event.uid, event.active, event.operation,
+        )
         rising = event.active and (not previous or event.momentary)
-        if rising and not event.is_initial:
+        if rising and not initial:
             state.last_triggered = now
             state.count += 1
             self.trigger_count += 1
@@ -461,7 +471,7 @@ class OnvifHub:
             self.entry.async_create_task(
                 self.hass, self._on_trigger(event), f"{DOMAIN} trigger {self.name}"
             )
-        elif previous != event.active and not event.is_initial:
+        elif previous != event.active and not initial:
             self._fire_bus_event(state)
 
     def _schedule_off(self, uid: str, delay: float) -> None:

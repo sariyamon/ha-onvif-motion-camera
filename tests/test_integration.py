@@ -148,6 +148,7 @@ async def test_snapshots_switch_off(hass: HomeAssistant, fake_camera) -> None:
 async def test_initial_state_does_not_trigger(hass: HomeAssistant, fake_camera) -> None:
     entry = await _setup(hass)
     hub = entry.runtime_data
+    hub._initial_until = hass.loop.time() + 10  # just subscribed
     hub.process_event(
         parse_message(
             _msg("tns1:RuleEngine/CellMotionDetector/Motion", {"IsMotion": "true"}, operation="Initialized")
@@ -156,6 +157,23 @@ async def test_initial_state_does_not_trigger(hass: HomeAssistant, fake_camera) 
     await hass.async_block_till_done()
     assert hub.snapshot.path is None
     assert hub.trigger_count == 0
+
+    # TP-Link VIGI tags live events "Initialized" too: after the startup
+    # window they must count as real detections.
+    hub._initial_until = 0
+    hub.process_event(
+        parse_message(
+            _msg("tns1:RuleEngine/CellMotionDetector/Motion", {"IsMotion": "false"}, operation="Initialized")
+        )
+    )
+    hub.process_event(
+        parse_message(
+            _msg("tns1:RuleEngine/CellMotionDetector/Motion", {"IsMotion": "true"}, operation="Initialized")
+        )
+    )
+    await hass.async_block_till_done()
+    assert hub.trigger_count == 1
+    assert hub.snapshot.path is not None
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 

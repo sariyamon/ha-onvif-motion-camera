@@ -63,7 +63,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             device = registry.async_get(device_id)
             if device is None:
                 raise ServiceValidationError(f"Unknown device {device_id}")
-            for entry_id in device.config_entries:
+            entry_ids = (
+                [device.config_entry_id]
+                if getattr(device, "config_entry_id", None)
+                else list(device.config_entries)
+            )
+            for entry_id in entry_ids:
                 entry = hass.config_entries.async_get_entry(entry_id)
                 if entry and entry.domain == DOMAIN and hasattr(entry, "runtime_data"):
                     hubs.append(entry.runtime_data)
