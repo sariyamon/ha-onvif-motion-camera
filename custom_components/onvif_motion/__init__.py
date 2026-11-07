@@ -24,6 +24,7 @@ from .const import (
     SERVICE_SNAPSHOT,
 )
 from .hub import CannotConnect, InvalidAuth, OnvifHub
+from .vigi import async_probe_vigi
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,6 +33,9 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.CAMERA,
     Platform.IMAGE,
+    Platform.LIGHT,
+    Platform.NUMBER,
+    Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
 ]
@@ -113,6 +117,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: OnvifMotionConfigEntry) 
         raise ConfigEntryAuthFailed(str(err)) from err
     except CannotConnect as err:
         raise ConfigEntryNotReady(f"Cannot reach {hub.name}: {err}") from err
+
+    # TP-Link VIGI cameras also get their own settings (spotlight, siren,
+    # detection switches…). Other brands simply skip this.
+    hub.vigi = await async_probe_vigi(hass, entry)
 
     entry.runtime_data = hub
     # Options (snapshot rules, Telegram, WhatsApp) are read live by the hub,

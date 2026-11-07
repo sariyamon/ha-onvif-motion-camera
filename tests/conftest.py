@@ -75,5 +75,8 @@ def _fake_camera() -> MagicMock:
 @pytest.fixture
 def fake_camera():
     cam = _fake_camera()
-    with patch("custom_components.onvif_motion.hub.make_camera", return_value=cam):
+    with (
+        patch("custom_components.onvif_motion.hub.make_camera", return_value=cam),
+        patch("custom_components.onvif_motion.async_probe_vigi", AsyncMock(return_value=None)),
+    ):
         yield cam

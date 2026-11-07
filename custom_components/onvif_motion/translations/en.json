@@ -94,14 +94,16 @@
       },
       "telegram": {
         "title": "Telegram",
-        "description": "Alerts are sent straight from Home Assistant to your Telegram bot, with the snapshot attached. Leave empty to turn Telegram off.",
+        "description": "Pick the Telegram chat(s) from the Telegram bot already set up in Home Assistant, or enter a bot token and chat IDs. Alerts are sent with the snapshot attached. Leave everything empty to turn Telegram off.",
         "data": {
+          "telegram_notify_entities": "Telegram chats (Home Assistant bot)",
           "telegram_bot_token": "Bot token",
           "telegram_chat_ids": "Chat IDs"
         },
         "data_description": {
-          "telegram_bot_token": "From @BotFather, e.g. 123456:ABC-DEF…",
-          "telegram_chat_ids": "One or more chat or group IDs, separated by commas."
+          "telegram_bot_token": "Only if you don't use the Home Assistant bot. From @BotFather, e.g. 123456:ABC-DEF…",
+          "telegram_chat_ids": "One or more chat or group IDs, separated by commas.",
+          "telegram_notify_entities": "Uses your existing Telegram bot integration; no token needed here."
         }
       },
       "whatsapp": {
@@ -146,15 +148,25 @@
   },
   "entity": {
     "binary_sensor": {
-      "event_subscription": { "name": "Event subscription" }
+      "event_subscription": {
+        "name": "Event subscription"
+      }
     },
     "image": {
-      "last_snapshot": { "name": "Last snapshot" }
+      "last_snapshot": {
+        "name": "Last snapshot"
+      }
     },
     "sensor": {
-      "last_event_time": { "name": "Last detection" },
-      "last_snapshot_time": { "name": "Last snapshot time" },
-      "events_today": { "name": "Detections today" },
+      "last_event_time": {
+        "name": "Last detection"
+      },
+      "last_snapshot_time": {
+        "name": "Last snapshot time"
+      },
+      "events_today": {
+        "name": "Detections today"
+      },
       "last_event_type": {
         "name": "Last detection type",
         "state": {
@@ -182,13 +194,104 @@
       }
     },
     "switch": {
-      "snapshots": { "name": "Snapshots" },
-      "telegram_alerts": { "name": "Telegram alerts" },
-      "whatsapp_alerts": { "name": "WhatsApp alerts" }
+      "snapshots": {
+        "name": "Snapshots"
+      },
+      "telegram_alerts": {
+        "name": "Telegram alerts"
+      },
+      "whatsapp_alerts": {
+        "name": "WhatsApp alerts"
+      },
+      "motion_detection": {
+        "name": "Motion detection"
+      },
+      "person_detection": {
+        "name": "Person detection"
+      },
+      "vehicle_detection": {
+        "name": "Vehicle detection"
+      },
+      "tamper_detection": {
+        "name": "Tamper detection"
+      },
+      "alarm": {
+        "name": "Siren & light alarm"
+      },
+      "alarm_light": {
+        "name": "Alarm light"
+      },
+      "alarm_sound": {
+        "name": "Alarm sound"
+      },
+      "status_led": {
+        "name": "Status LED"
+      },
+      "target_tracking": {
+        "name": "Auto tracking"
+      },
+      "speaker_mute": {
+        "name": "Speaker mute"
+      },
+      "microphone_mute": {
+        "name": "Microphone mute"
+      }
     },
     "button": {
-      "take_snapshot": { "name": "Take snapshot" },
-      "test_alert": { "name": "Send test alert" }
+      "take_snapshot": {
+        "name": "Take snapshot"
+      },
+      "test_alert": {
+        "name": "Send test alert"
+      },
+      "ptz_pan_left": {
+        "name": "Pan left"
+      },
+      "ptz_pan_right": {
+        "name": "Pan right"
+      },
+      "ptz_tilt_up": {
+        "name": "Tilt up"
+      },
+      "ptz_tilt_down": {
+        "name": "Tilt down"
+      },
+      "ptz_zoom_in": {
+        "name": "Zoom in"
+      },
+      "ptz_zoom_out": {
+        "name": "Zoom out"
+      },
+      "alarm_trigger": {
+        "name": "Sound alarm"
+      },
+      "alarm_stop": {
+        "name": "Stop alarm"
+      }
+    },
+    "light": {
+      "spotlight": {
+        "name": "Spotlight"
+      }
+    },
+    "select": {
+      "night_vision": {
+        "name": "Night vision"
+      },
+      "ptz_preset": {
+        "name": "Preset position"
+      }
+    },
+    "number": {
+      "motion_sensitivity": {
+        "name": "Motion sensitivity"
+      },
+      "speaker_volume": {
+        "name": "Speaker volume"
+      },
+      "alarm_repetitions": {
+        "name": "Alarm sound repeats"
+      }
     }
   },
   "services": {
@@ -196,17 +299,32 @@
       "name": "Take snapshot",
       "description": "Save a snapshot now and make it the latest snapshot.",
       "fields": {
-        "device_id": { "name": "Camera", "description": "The camera(s) to snapshot." }
+        "device_id": {
+          "name": "Camera",
+          "description": "The camera(s) to snapshot."
+        }
       }
     },
     "send_alert": {
       "name": "Send alert",
       "description": "Send a Telegram / WhatsApp alert, optionally with a fresh snapshot.",
       "fields": {
-        "device_id": { "name": "Camera", "description": "The camera(s) to alert for." },
-        "message": { "name": "Message", "description": "Text to send. Leave empty for the default message." },
-        "attach_snapshot": { "name": "Attach snapshot", "description": "Take a snapshot and attach it." },
-        "channels": { "name": "Channels", "description": "Where to send." }
+        "device_id": {
+          "name": "Camera",
+          "description": "The camera(s) to alert for."
+        },
+        "message": {
+          "name": "Message",
+          "description": "Text to send. Leave empty for the default message."
+        },
+        "attach_snapshot": {
+          "name": "Attach snapshot",
+          "description": "Take a snapshot and attach it."
+        },
+        "channels": {
+          "name": "Channels",
+          "description": "Where to send."
+        }
       }
     }
   }

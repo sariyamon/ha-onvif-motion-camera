@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
-from homeassistant.const import STATE_OFF
+from homeassistant.const import STATE_OFF, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import OnvifMotionConfigEntry
-from .entity import OnvifMotionEntity
+from .entity import OnvifMotionEntity, VigiEntity
 from .hub import OnvifHub
 
 
@@ -39,7 +39,15 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     hub = entry.runtime_data
-    async_add_entities(HubSwitch(hub, desc) for desc in SWITCHES)
+    entities: list[SwitchEntity] = [HubSwitch(hub, desc) for desc in SWITCHES]
+    if hub.vigi:
+        data = hub.vigi.data or {}
+        entities.extend(
+            VigiSwitch(hub, desc)
+            for desc in VIGI_SWITCHES
+            if desc.field in data.get(desc.data_key, {})
+        )
+    async_add_entities(entities)
 
 
 class HubSwitch(OnvifMotionEntity, SwitchEntity, RestoreEntity):
@@ -67,3 +75,69 @@ class HubSwitch(OnvifMotionEntity, SwitchEntity, RestoreEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         setattr(self.hub, self.entity_description.attr, False)
         self.async_write_ha_state()
+
+
+@dataclass(frozen=True, kw_only=True)
+class VigiSwitchDescription(SwitchEntityDescription):
+    """A VIGI on/off setting: data key, field, and where to write it."""
+
+    data_key: str
+    field: str
+    module: str
+    section: str
+
+
+VIGI_SWITCHES = (
+    VigiSwitchDescription(key="motion_detection", translation_key="motion_detection", icon="mdi:motion-sensor",
+                          data_key="motion", field="enabled", module="motion_detection", section="motion_det"),
+    VigiSwitchDescription(key="person_detection", translation_key="person_detection", icon="mdi:human",
+                          data_key="motion", field="people_enabled", module="motion_detection", section="motion_det"),
+    VigiSwitchDescription(key="vehicle_detection", translation_key="vehicle_detection", icon="mdi:car",
+                          data_key="motion", field="vehicle_enabled", module="motion_detection", section="motion_det"),
+    VigiSwitchDescription(key="tamper_detection", translation_key="tamper_detection", icon="mdi:shield-alert",
+                          data_key="tamper", field="enabled", module="tamper_detection", section="tamper_det"),
+    VigiSwitchDescription(key="alarm", translation_key="alarm", icon="mdi:alarm-light",
+                          data_key="alarm", field="enabled", module="msg_alarm", section="chn1_msg_alarm_info"),
+    VigiSwitchDescription(key="alarm_light", translation_key="alarm_light", icon="mdi:alarm-light-outline",
+                          data_key="alarm", field="light_alarm_enabled", module="msg_alarm", section="chn1_msg_alarm_info"),
+    VigiSwitchDescription(key="alarm_sound", translation_key="alarm_sound", icon="mdi:bullhorn",
+                          data_key="alarm", field="sound_alarm_enabled", module="msg_alarm", section="chn1_msg_alarm_info"),
+    VigiSwitchDescription(key="status_led", translation_key="status_led", icon="mdi:led-on",
+                          entity_category=EntityCategory.CONFIG,
+                          data_key="led", field="enabled", module="led", section="config"),
+    VigiSwitchDescription(key="target_tracking", translation_key="target_tracking", icon="mdi:target-account",
+                          data_key="target_track", field="enabled", module="target_track", section="target_track_info"),
+    VigiSwitchDescription(key="speaker_mute", translation_key="speaker_mute", icon="mdi:volume-off",
+                          entity_category=EntityCategory.CONFIG,
+                          data_key="speaker", field="mute", module="audio_config", section="speaker"),
+    VigiSwitchDescription(key="microphone_mute", translation_key="microphone_mute", icon="mdi:microphone-off",
+                          entity_category=EntityCategory.CONFIG,
+                          data_key="microphone", field="mute", module="audio_config", section="microphone"),
+)
+
+
+class VigiSwitch(VigiEntity, SwitchEntity):
+    """On/off camera setting (only created when the camera reports it)."""
+
+    entity_description: VigiSwitchDescription
+
+    def __init__(self, hub: OnvifHub, description: VigiSwitchDescription) -> None:
+        super().__init__(hub, f"vigi_{description.key}")
+        self.entity_description = description
+
+    @property
+    def is_on(self) -> bool:
+        d = self.entity_description
+        return self.data.get(d.data_key, {}).get(d.field) == "on"
+
+    async def _set(self, on: bool) -> None:
+        d = self.entity_description
+        await self.coordinator.async_write(
+            self.coordinator.api.set(d.module, d.section, {d.field: "on" if on else "off"})
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._set(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._set(False)

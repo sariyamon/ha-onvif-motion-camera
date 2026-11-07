@@ -12,6 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_TELEGRAM_CHAT_IDS,
+    CONF_TELEGRAM_NOTIFY,
     CONF_TELEGRAM_TOKEN,
     CONF_WHATSAPP_APIKEY,
     CONF_WHATSAPP_NOTIFY_ACTION,
@@ -45,9 +46,37 @@ def split_list(value: str | None) -> list[str]:
 
 
 def telegram_configured(options: dict[str, Any]) -> bool:
+    if options.get(CONF_TELEGRAM_NOTIFY):
+        return True
     return bool(options.get(CONF_TELEGRAM_TOKEN)) and bool(
         split_list(options.get(CONF_TELEGRAM_CHAT_IDS))
     )
+
+
+async def _telegram_via_ha(
+    hass: HomeAssistant,
+    options: dict[str, Any],
+    message: str,
+    snapshot_path: str | None,
+) -> None:
+    """Send through Home Assistant's own Telegram bot integration (no token here)."""
+    targets = options[CONF_TELEGRAM_NOTIFY]
+    if isinstance(targets, str):
+        targets = split_list(targets)
+    if snapshot_path:
+        await hass.services.async_call(
+            "telegram_bot",
+            "send_photo",
+            {"entity_id": targets, "file": snapshot_path, "caption": message[:1024]},
+            blocking=True,
+        )
+    else:
+        await hass.services.async_call(
+            "telegram_bot",
+            "send_message",
+            {"entity_id": targets, "message": message},
+            blocking=True,
+        )
 
 
 def whatsapp_configured(options: dict[str, Any]) -> bool:
@@ -73,8 +102,12 @@ async def send_telegram(
     options: dict[str, Any],
     message: str,
     image: bytes | None,
+    snapshot_path: str | None = None,
 ) -> None:
     """Send a photo (or text) to every configured Telegram chat."""
+    if options.get(CONF_TELEGRAM_NOTIFY):
+        await _telegram_via_ha(hass, options, message, snapshot_path if image else None)
+        return
     token = options[CONF_TELEGRAM_TOKEN].strip()
     session = async_get_clientsession(hass)
     errors: list[str] = []

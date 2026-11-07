@@ -39,6 +39,8 @@ DEFAULT_ALERT_MESSAGE: Final = "{event} detected at {camera} – {time}"
 
 CONF_TELEGRAM_TOKEN: Final = "telegram_bot_token"
 CONF_TELEGRAM_CHAT_IDS: Final = "telegram_chat_ids"
+# Alternative: send through a Telegram bot already set up in Home Assistant
+CONF_TELEGRAM_NOTIFY: Final = "telegram_notify_entities"
 
 CONF_WHATSAPP_PROVIDER: Final = "whatsapp_provider"
 CONF_WHATSAPP_TOKEN: Final = "whatsapp_access_token"

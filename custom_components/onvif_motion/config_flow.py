@@ -23,6 +23,8 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -47,6 +49,7 @@ from .const import (
     CONF_SNAPSHOT_EVENTS,
     CONF_SNAPSHOT_KEEP,
     CONF_TELEGRAM_CHAT_IDS,
+    CONF_TELEGRAM_NOTIFY,
     CONF_TELEGRAM_TOKEN,
     CONF_WHATSAPP_APIKEY,
     CONF_WHATSAPP_NOTIFY_ACTION,
@@ -345,12 +348,21 @@ class OnvifMotionOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         if user_input is not None:
+            self._options[CONF_TELEGRAM_NOTIFY] = user_input.get(CONF_TELEGRAM_NOTIFY, [])
             self._options[CONF_TELEGRAM_TOKEN] = user_input.get(CONF_TELEGRAM_TOKEN, "").strip()
             self._options[CONF_TELEGRAM_CHAT_IDS] = user_input.get(CONF_TELEGRAM_CHAT_IDS, "").strip()
             return await self.async_step_init()
         o = self._options
         schema = vol.Schema(
             {
+                vol.Optional(
+                    CONF_TELEGRAM_NOTIFY,
+                    description={"suggested_value": o.get(CONF_TELEGRAM_NOTIFY, [])},
+                ): EntitySelector(
+                    EntitySelectorConfig(
+                        domain="notify", integration="telegram_bot", multiple=True
+                    )
+                ),
                 vol.Optional(
                     CONF_TELEGRAM_TOKEN,
                     description={"suggested_value": o.get(CONF_TELEGRAM_TOKEN, "")},

@@ -71,6 +71,7 @@ from .const import (
     SUBSCRIPTION_INTERVAL,
 )
 from .parsers import ParsedEvent, parse_messages
+from .ptz import OnvifPTZ
 
 _LOGGER = logging.getLogger(__name__)
 MOMENTARY_RESET = 5  # seconds a pulse-style event (e.g. line crossed) stays on
@@ -201,6 +202,7 @@ async def _read_profiles(camera: ONVIFCamera) -> list[dict[str, Any]]:
                 "encoding": getattr(encoder, "Encoding", ""),
                 "width": getattr(resolution, "Width", 0),
                 "height": getattr(resolution, "Height", 0),
+                "ptz": getattr(profile, "PTZConfiguration", None) is not None,
             }
         )
     return profiles
@@ -249,7 +251,12 @@ class OnvifHub:
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
         )
-        self.snapshot_dir = Path(hass.config.path(SNAPSHOT_DIR, entry.entry_id))
+        # Snapshots live in the media folder: browsable in Media, not served
+        # publicly, and on the allowlist Home Assistant's Telegram bot can send from.
+        media_root = hass.config.media_dirs.get("local") or hass.config.path("media")
+        self.snapshot_dir = Path(media_root, SNAPSHOT_DIR, entry.entry_id)
+        self.ptz: OnvifPTZ | None = None
+        self.vigi: Any = None  # VigiCoordinator when the camera has VIGI controls
 
     # ------------------------------------------------------------------ setup
     @property
@@ -272,6 +279,10 @@ class OnvifHub:
             if self.profile_token not in tokens and tokens:
                 self.profile_token = tokens[0]
             self.stream_uri = await self._read_stream_uri()
+            if any(p["ptz"] for p in profiles if p["token"] == self.profile_token):
+                ptz = OnvifPTZ(self.camera, self.profile_token)
+                if await ptz.setup():
+                    self.ptz = ptz
         except CONNECT_ERRORS as err:
             await self.camera.close()
             self.camera = None
@@ -292,6 +303,8 @@ class OnvifHub:
         if self._event_task:
             self._event_task.cancel()
         await self._stop_manager()
+        if self.vigi:
+            await self.vigi.api.close()
         if self.camera:
             await self.camera.close()
             self.camera = None
@@ -647,7 +660,9 @@ class OnvifHub:
         sent = False
         if CHANNEL_TELEGRAM in channels and telegram_configured(options):
             try:
-                await send_telegram(self.hass, options, message, image)
+                await send_telegram(
+                    self.hass, options, message, image, self.snapshot.path
+                )
                 sent = True
             except HomeAssistantError as err:
                 errors.append(str(err))

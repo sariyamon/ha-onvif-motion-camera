@@ -6,6 +6,8 @@ A custom integration for any ONVIF camera that gives you, in one place:
 - **A sensor for every detection the camera reports** — motion, person, vehicle, pet, face, line crossing, intrusion, region enter/exit, loitering, tamper, audio, digital input and more, created automatically as the camera reports them
 - **Latest snapshot** taken on detection (from the camera's ONVIF snapshot URL, or straight from the video stream for cameras without one, such as TP-Link VIGI), kept across restarts, with its time — ready for a "Last Motion" dashboard
 - **Telegram and WhatsApp alerts built in** — snapshot attached, no Node-RED, no extra automations
+- **Camera controls**: pan / tilt / zoom buttons and preset positions for any ONVIF PTZ camera
+- **TP-Link VIGI extras** (found automatically): spotlight, night-vision mode, siren & alarm light, motion / person / vehicle / tamper detection on-off, motion sensitivity, auto tracking, status LED, speaker and microphone
 - Switches, buttons, services and bus events for your own automations
 
 Set-up is just: **IP, port, protocol, username, password.** Install the same integration on any other Home Assistant and add cameras the same way.
@@ -54,6 +56,8 @@ Changed the camera's IP or password later? Use **⋮ → Reconfigure** on the in
 | `switch.gate_snapshots` | Take snapshots on detection |
 | `switch.gate_telegram_alerts` / `switch.gate_whatsapp_alerts` | Per-camera alert on/off |
 | `button.gate_take_snapshot`, `button.gate_send_test_alert`, `button.gate_restart` | |
+| `button.<name>_pan_left` / `_pan_right` / `_tilt_up` / `_tilt_down` / `_zoom_in` / `_zoom_out`, `select.<name>_preset_position` | PTZ cameras only |
+| `light.<name>_spotlight`, `select.<name>_night_vision`, `switch.<name>_motion_detection`, `_person_detection`, `_vehicle_detection`, `_tamper_detection`, `_siren_light_alarm`, `_alarm_light`, `_alarm_sound`, `_auto_tracking`, `_status_led`, `_speaker_mute`, `_microphone_mute`, `number.<name>_motion_sensitivity`, `_speaker_volume`, `_alarm_sound_repeats`, `button.<name>_sound_alarm` / `_stop_alarm` | TP-Link VIGI only, and only the settings your model has |
 
 Event sensors appear the first time the camera reports that event. Walk in front of the camera once after adding it to see them all.
 
@@ -61,9 +65,9 @@ Event sensors appear the first time the camera reports that event. Walk in front
 
 Open the integration → **Configure**:
 
-- **Snapshots** – which events take a snapshot, minimum gap between snapshots, how many files to keep (stored in `/config/onvif_motion/`), and an optional minimum "on" time for event sensors.
+- **Snapshots** – which events take a snapshot, minimum gap between snapshots, how many files to keep (stored in your media folder under `onvif_motion/`, so they also show in **Media**), and an optional minimum "on" time for event sensors.
 - **Alert rules** – which events send an alert, minimum gap between alerts, and the message (`{camera}`, `{event}`, `{time}`, `{date}`).
-- **Telegram** – bot token from @BotFather and one or more chat IDs. Alerts arrive as a photo with caption.
+- **Telegram** – pick chats from the Telegram bot you already have in Home Assistant (no token needed), or enter a bot token from @BotFather and chat IDs. Alerts arrive as a photo with caption.
 - **WhatsApp** – choose a provider:
   - **WhatsApp Cloud API (Meta)** – sends the snapshot as a photo. Needs an access token, phone number ID and recipient numbers. Meta only delivers free-form messages to people who messaged your business number in the last 24 h; otherwise use an approved template or one of the options below.
   - **CallMeBot** – free and quick to set up, text only. Each recipient gets an API key from CallMeBot.
@@ -121,6 +125,9 @@ Add the camera here, check the new entities work, then turn off the old flows.
     logs:
       custom_components.onvif_motion: debug
   ```
+
+## Credits
+The TP-Link VIGI controls are adapted from [VIGICam](https://github.com/steveAbratt/VIGICam) by Steve Bratt (MIT), whose login flow builds on [pytapo](https://github.com/JurajNyiri/pytapo) (MIT).
 
 ## License
 MIT

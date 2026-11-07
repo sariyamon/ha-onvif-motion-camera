@@ -5,6 +5,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, SIGNAL_UPDATE
 from .hub import OnvifHub
@@ -46,3 +47,15 @@ class OnvifMotionEntity(Entity):
     @callback
     def _handle_hub_update(self) -> None:
         self.async_write_ha_state()
+
+
+class VigiEntity(CoordinatorEntity, OnvifMotionEntity):
+    """A camera setting read and written through the VIGI API."""
+
+    def __init__(self, hub: OnvifHub, key: str) -> None:
+        OnvifMotionEntity.__init__(self, hub, key)
+        CoordinatorEntity.__init__(self, hub.vigi)
+
+    @property
+    def data(self) -> dict:
+        return self.coordinator.data or {}
