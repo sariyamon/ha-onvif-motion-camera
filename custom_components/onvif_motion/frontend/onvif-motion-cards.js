@@ -13,7 +13,7 @@
  *   type: custom:onvif-motion-controls-card      – one camera: live view, PTZ, spotlight, siren…
  */
 const DOMAIN = "onvif_motion";
-const VERSION = "1.5.1";
+const VERSION = "1.5.2";
 
 const SHADOW = "0 0 4px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.9)";
 const LABEL = {
@@ -136,7 +136,7 @@ const VIEWER_CSS = `
   aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
 .omv-media img{width:100%;height:100%;object-fit:contain;display:block}
 .omv-media .omv-live{width:100%;height:100%;object-fit:contain;display:block}
-.omv-badge{position:absolute;top:10px;left:10px;padding:3px 10px;border-radius:999px;font-size:12px;
+.omv-badge{position:absolute;top:10px;right:10px;padding:3px 10px;border-radius:999px;font-size:12px;
   font-weight:600;letter-spacing:.04em;color:#fff;background:rgba(0,0,0,.55)}
 .omv-badge.live{background:#d32f2f}
 .omv-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
