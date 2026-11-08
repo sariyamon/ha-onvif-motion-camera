@@ -1,6 +1,8 @@
 """End-to-end tests with a faked camera."""
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant
@@ -313,3 +315,22 @@ async def test_options_connection(hass: HomeAssistant, fake_camera) -> None:
     )
     assert result["errors"] == {"base": "different_camera"}
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_mjpeg_live_view(hass: HomeAssistant, fake_camera) -> None:
+    """The live view is served as MJPEG from the RTSP stream through ffmpeg."""
+    await _setup(hass)
+    camera = hass.data["entity_components"]["camera"].get_entity("camera.gate")
+    stream = MagicMock()
+    stream.open_camera = AsyncMock()
+    stream.get_reader = AsyncMock(return_value="reader")
+    stream.close = AsyncMock()
+    with patch("custom_components.onvif_motion.camera.CameraMjpeg", return_value=stream), patch(
+        "custom_components.onvif_motion.camera.async_aiohttp_proxy_stream",
+        AsyncMock(return_value="response"),
+    ) as proxy:
+        assert await camera.handle_async_mjpeg_stream(MagicMock()) == "response"
+    stream.open_camera.assert_awaited_once()
+    assert stream.open_camera.call_args.args[0] == "rtsp://admin:secret@192.168.31.101:554/stream1"
+    assert proxy.call_args.args[2] == "reader"
+    stream.close.assert_awaited_once()

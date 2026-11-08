@@ -13,7 +13,7 @@
  *   type: custom:onvif-motion-controls-card      – one camera: live view, PTZ, spotlight, siren…
  */
 const DOMAIN = "onvif_motion";
-const VERSION = "1.5.0";
+const VERSION = "1.5.1";
 
 const SHADOW = "0 0 4px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.9)";
 const LABEL = {
@@ -135,13 +135,7 @@ const VIEWER_CSS = `
 .omv-media{position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;
   aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
 .omv-media img{width:100%;height:100%;object-fit:contain;display:block}
-.omv-media .omv-live{width:100%}
-.omv-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;
-  border-radius:50%;border:2px solid rgba(255,255,255,.85);background:rgba(0,0,0,.45);color:#fff;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(4px);
-  transition:transform .12s,background .12s}
-.omv-play:hover{background:rgba(0,0,0,.65);transform:translate(-50%,-50%) scale(1.06)}
-.omv-play ha-icon{--mdc-icon-size:44px;margin-left:4px}
+.omv-media .omv-live{width:100%;height:100%;object-fit:contain;display:block}
 .omv-badge{position:absolute;top:10px;left:10px;padding:3px 10px;border-radius:999px;font-size:12px;
   font-weight:600;letter-spacing:.04em;color:#fff;background:rgba(0,0,0,.55)}
 .omv-badge.live{background:#d32f2f}
@@ -203,14 +197,18 @@ export function openViewer({ camera, image, time }) {
   let liveCard = null;
   let timer = null;
 
+  const stopLive = () => {
+    if (liveCard && liveCard.tagName === "IMG") liveCard.src = "";
+    liveCard = null;
+  };
+
   const showSnapshot = () => {
     if (timer) clearInterval(timer);
-    liveCard = null;
+    stopLive();
     media.replaceChildren();
     if (src) media.append(el("img", { src, alt: `${name} last motion snapshot` }));
     else media.append(el("div", { class: "omv-sub", text: "No snapshot yet" }));
     media.append(el("span", { class: "omv-badge", text: "SNAPSHOT" }));
-    media.append(el("button", { class: "omv-play", title: "Play live stream", "aria-label": "Play live stream", onclick: showLive }, [icon("mdi:play")]));
     sub.textContent = time ? `Last motion · ${formatState(hass, time)}` : "Last motion";
     bar.replaceChildren(
       el("button", { class: "omv-btn", onclick: showLive }, [icon("mdi:play-circle"), "Watch live"]),
@@ -218,26 +216,21 @@ export function openViewer({ camera, image, time }) {
     );
   };
 
-  const showLive = async (ev) => {
+  const showLive = (ev) => {
     if (ev) ev.stopPropagation();
-    const helpers = await window.loadCardHelpers();
-    liveCard = helpers.createCardElement({
-      type: "picture-entity",
-      entity: camera,
-      camera_image: camera,
-      camera_view: "live",
-      show_name: false,
-      show_state: false,
-      tap_action: { action: "none" },
-      hold_action: { action: "none" },
-    });
-    liveCard.classList.add("omv-live");
-    liveCard.hass = currentHass() || hass;
-    timer = setInterval(() => {
-      const h = currentHass();
-      if (h && liveCard) liveCard.hass = h;
-    }, 2000);
-    media.replaceChildren(liveCard, el("span", { class: "omv-badge live", text: "● LIVE" }));
+    const h = currentHass() || hass;
+    const st = h.states[camera];
+    const token = st && st.attributes.access_token;
+    const live = el("img", { class: "omv-live", alt: `${name} live stream` });
+    const fail = () => {
+      media.replaceChildren(
+        el("div", { class: "omv-sub", text: "Live stream unavailable. Open Camera details to try the video player." })
+      );
+    };
+    live.addEventListener("error", fail, { once: true });
+    live.src = `/api/camera_proxy_stream/${camera}?token=${encodeURIComponent(token || "")}`;
+    liveCard = live;
+    media.replaceChildren(live, el("span", { class: "omv-badge live", text: "● LIVE" }));
     sub.textContent = "Live stream";
     bar.replaceChildren(
       el("button", { class: "omv-btn", onclick: showSnapshot }, [icon("mdi:image"), "Back to snapshot"]),
@@ -259,7 +252,10 @@ export function openViewer({ camera, image, time }) {
   box.addEventListener("click", (e) => e.stopPropagation());
   root.addEventListener("click", closeViewer);
   root.append(box);
-  root._cleanup = () => timer && clearInterval(timer);
+  root._cleanup = () => {
+    if (timer) clearInterval(timer);
+    stopLive();
+  };
   document.body.append(root);
   document.addEventListener("keydown", onKey);
   showSnapshot();

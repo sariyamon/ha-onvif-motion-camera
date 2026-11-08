@@ -1,8 +1,13 @@
 """Live camera entity (RTSP stream + ONVIF still image)."""
 from __future__ import annotations
 
+from aiohttp import web
+from haffmpeg.camera import CameraMjpeg
+
 from homeassistant.components.camera import Camera, CameraEntityFeature
+from homeassistant.components.ffmpeg import get_ffmpeg_manager
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_aiohttp_proxy_stream
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -44,3 +49,20 @@ class OnvifLiveCamera(OnvifMotionEntity, Camera):
             return await self.hub.async_get_image()
         except HomeAssistantError:
             return None
+
+    async def handle_async_mjpeg_stream(
+        self, request: web.Request
+    ) -> web.StreamResponse | None:
+        """MJPEG live view (works in every browser and the mobile app, no HLS needed)."""
+        if not self.hub.stream_uri:
+            return await super().handle_async_mjpeg_stream(request)
+        manager = get_ffmpeg_manager(self.hass)
+        stream = CameraMjpeg(manager.binary)
+        await stream.open_camera(self.hub.stream_uri, extra_cmd="-q:v 5 -r 10")
+        try:
+            reader = await stream.get_reader()
+            return await async_aiohttp_proxy_stream(
+                self.hass, request, reader, manager.ffmpeg_stream_content_type
+            )
+        finally:
+            await stream.close()
