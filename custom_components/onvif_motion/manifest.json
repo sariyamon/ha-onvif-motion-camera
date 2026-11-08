@@ -24,5 +24,5 @@
   "requirements": [
     "onvif-zeep-async>=3.2.5"
   ],
-  "version": "1.4.1"
+  "version": "1.5.0"
 }

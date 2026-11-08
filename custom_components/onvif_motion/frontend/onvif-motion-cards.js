@@ -13,7 +13,7 @@
  *   type: custom:onvif-motion-controls-card      – one camera: live view, PTZ, spotlight, siren…
  */
 const DOMAIN = "onvif_motion";
-const VERSION = "1.4.1";
+const VERSION = "1.5.0";
 
 const SHADOW = "0 0 4px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.9)";
 const LABEL = {
@@ -66,13 +66,34 @@ const empty = (text) => ({
 
 /* ------------------------------------------------------- card builders */
 
+/** Tap action that opens the snapshot viewer (works in any picture-elements card). */
+export function viewerAction(camera, image, time) {
+  return {
+    action: "fire-dom-event",
+    onvif_motion_viewer: { camera, image, ...(time ? { time } : {}) },
+  };
+}
+
+// 1×1 transparent pixel stretched over the whole picture, so a tap anywhere opens the viewer.
+const TAP_LAYER = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
 export function lastMotionConfig(cams, cfg) {
   if (!cams.length) return empty();
   const cards = cams
     .filter((c) => c.ents.last_snapshot)
     .map((c) => {
-      const tap = { action: "more-info", entity: c.ents.live };
+      const tap =
+        cfg.tap === "more-info"
+          ? { action: "more-info", entity: c.ents.live }
+          : viewerAction(c.ents.live, c.ents.last_snapshot, c.ents.last_snapshot_time);
       const elements = [
+        {
+          type: "image",
+          image: TAP_LAYER,
+          tap_action: tap,
+          hold_action: { action: "more-info", entity: c.ents.live },
+          style: { left: "50%", top: "50%", width: "100%", height: "100%" },
+        },
         {
           type: "state-label",
           entity: c.ents.live,
@@ -96,6 +117,171 @@ export function lastMotionConfig(cams, cfg) {
     columns: cfg.columns || 2,
     square: false,
     cards,
+  });
+}
+
+/* ------------------------------------------------------ snapshot viewer */
+
+const VIEWER_CSS = `
+.omv-backdrop{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.88);display:flex;
+  align-items:center;justify-content:center;padding:16px;box-sizing:border-box;
+  font-family:var(--ha-font-family-body,Roboto,sans-serif);animation:omv-in .15s ease-out}
+@keyframes omv-in{from{opacity:0}to{opacity:1}}
+.omv-box{width:100%;max-width:1100px;display:flex;flex-direction:column;gap:10px}
+.omv-head{display:flex;align-items:center;gap:12px;color:#fff}
+.omv-title{flex:1;min-width:0}
+.omv-name{font-size:18px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.omv-sub{font-size:13px;opacity:.75;margin-top:2px}
+.omv-media{position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;
+  aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
+.omv-media img{width:100%;height:100%;object-fit:contain;display:block}
+.omv-media .omv-live{width:100%}
+.omv-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;
+  border-radius:50%;border:2px solid rgba(255,255,255,.85);background:rgba(0,0,0,.45);color:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(4px);
+  transition:transform .12s,background .12s}
+.omv-play:hover{background:rgba(0,0,0,.65);transform:translate(-50%,-50%) scale(1.06)}
+.omv-play ha-icon{--mdc-icon-size:44px;margin-left:4px}
+.omv-badge{position:absolute;top:10px;left:10px;padding:3px 10px;border-radius:999px;font-size:12px;
+  font-weight:600;letter-spacing:.04em;color:#fff;background:rgba(0,0,0,.55)}
+.omv-badge.live{background:#d32f2f}
+.omv-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.omv-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;font:inherit;
+  font-size:14px;cursor:pointer}
+.omv-btn:hover{background:rgba(255,255,255,.18)}
+.omv-btn ha-icon{--mdc-icon-size:20px}
+.omv-x{background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:50%;display:flex}
+.omv-x:hover{background:rgba(255,255,255,.12)}
+`;
+
+function currentHass() {
+  const ha = document.querySelector("home-assistant");
+  return ha && ha.hass;
+}
+
+function formatState(hass, entityId) {
+  const st = entityId && hass.states[entityId];
+  if (!st || ["unknown", "unavailable"].includes(st.state)) return "";
+  try {
+    if (hass.formatEntityState) return hass.formatEntityState(st);
+  } catch (_e) {
+    /* fall through */
+  }
+  const d = new Date(st.state);
+  return isNaN(d) ? st.state : d.toLocaleString();
+}
+
+function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "text") node.textContent = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const c of children) node.append(c);
+  return node;
+}
+
+const icon = (name) => el("ha-icon", { icon: name });
+
+export function openViewer({ camera, image, time }) {
+  const hass = currentHass();
+  if (!hass || !camera) return;
+  closeViewer();
+  const camState = hass.states[camera];
+  const name = (camState && camState.attributes.friendly_name) || camera;
+  const imgState = image && hass.states[image];
+  const src = imgState && imgState.attributes.entity_picture;
+
+  const root = el("div", { class: "omv-backdrop", role: "dialog", "aria-modal": "true", "aria-label": name });
+  root.append(el("style", { text: VIEWER_CSS }));
+  const media = el("div", { class: "omv-media" });
+  const sub = el("div", { class: "omv-sub", text: time ? `Last motion · ${formatState(hass, time)}` : "Last motion" });
+  const bar = el("div", { class: "omv-bar" });
+  let liveCard = null;
+  let timer = null;
+
+  const showSnapshot = () => {
+    if (timer) clearInterval(timer);
+    liveCard = null;
+    media.replaceChildren();
+    if (src) media.append(el("img", { src, alt: `${name} last motion snapshot` }));
+    else media.append(el("div", { class: "omv-sub", text: "No snapshot yet" }));
+    media.append(el("span", { class: "omv-badge", text: "SNAPSHOT" }));
+    media.append(el("button", { class: "omv-play", title: "Play live stream", "aria-label": "Play live stream", onclick: showLive }, [icon("mdi:play")]));
+    sub.textContent = time ? `Last motion · ${formatState(hass, time)}` : "Last motion";
+    bar.replaceChildren(
+      el("button", { class: "omv-btn", onclick: showLive }, [icon("mdi:play-circle"), "Watch live"]),
+      el("button", { class: "omv-btn", onclick: moreInfo }, [icon("mdi:cctv"), "Camera details"])
+    );
+  };
+
+  const showLive = async (ev) => {
+    if (ev) ev.stopPropagation();
+    const helpers = await window.loadCardHelpers();
+    liveCard = helpers.createCardElement({
+      type: "picture-entity",
+      entity: camera,
+      camera_image: camera,
+      camera_view: "live",
+      show_name: false,
+      show_state: false,
+      tap_action: { action: "none" },
+      hold_action: { action: "none" },
+    });
+    liveCard.classList.add("omv-live");
+    liveCard.hass = currentHass() || hass;
+    timer = setInterval(() => {
+      const h = currentHass();
+      if (h && liveCard) liveCard.hass = h;
+    }, 2000);
+    media.replaceChildren(liveCard, el("span", { class: "omv-badge live", text: "● LIVE" }));
+    sub.textContent = "Live stream";
+    bar.replaceChildren(
+      el("button", { class: "omv-btn", onclick: showSnapshot }, [icon("mdi:image"), "Back to snapshot"]),
+      el("button", { class: "omv-btn", onclick: moreInfo }, [icon("mdi:cctv"), "Camera details"])
+    );
+  };
+
+  const moreInfo = () => {
+    closeViewer();
+    const ha = document.querySelector("home-assistant");
+    ha && ha.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: camera }, bubbles: true, composed: true }));
+  };
+
+  const head = el("div", { class: "omv-head" }, [
+    el("div", { class: "omv-title" }, [el("div", { class: "omv-name", text: name }), sub]),
+    el("button", { class: "omv-x", title: "Close", "aria-label": "Close", onclick: closeViewer }, [icon("mdi:close")]),
+  ]);
+  const box = el("div", { class: "omv-box" }, [head, media, bar]);
+  box.addEventListener("click", (e) => e.stopPropagation());
+  root.addEventListener("click", closeViewer);
+  root.append(box);
+  root._cleanup = () => timer && clearInterval(timer);
+  document.body.append(root);
+  document.addEventListener("keydown", onKey);
+  showSnapshot();
+}
+
+function onKey(e) {
+  if (e.key === "Escape") closeViewer();
+}
+
+export function closeViewer() {
+  document.querySelectorAll(".omv-backdrop").forEach((n) => {
+    n._cleanup && n._cleanup();
+    n.remove();
+  });
+  document.removeEventListener("keydown", onKey);
+}
+
+if (typeof window !== "undefined" && !window.__onvifMotionViewer) {
+  window.__onvifMotionViewer = true;
+  window.addEventListener("ll-custom", (ev) => {
+    const cfg = ev.detail && ev.detail.onvif_motion_viewer;
+    if (cfg) openViewer(cfg);
   });
 }
 

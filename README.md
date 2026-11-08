@@ -120,7 +120,7 @@ Each section has its own card. Use the ones you want, in any order:
 
 | Card | Type | Shows |
 | --- | --- | --- |
-| **Recent motion** | `custom:onvif-motion-last-motion-card` | Latest motion snapshot of each camera, name and time over the picture; tap for live view |
+| **Recent motion** | `custom:onvif-motion-last-motion-card` | Latest motion snapshot of each camera, name and time over the picture. Tap to open the snapshot full size with a ▶ button to play the live stream; hold for camera details |
 | **Live cameras** | `custom:onvif-motion-live-card` | Live view of each camera |
 | **Detections** | `custom:onvif-motion-detections-card` | Last detection (type + how long ago) and today's count per camera |
 | **Telegram & WhatsApp** | `custom:onvif-motion-notify-card` | Telegram and WhatsApp alert switches per camera |
@@ -146,6 +146,17 @@ title: Last Motion                         # optional, false hides the heading
 type: custom:onvif-motion-ptz-card
 camera: camera.outdoor_360                 # optional: default is the first PTZ camera
 show_live: true
+```
+
+**Snapshot viewer in your own cards.** Any `picture-elements` card can open the same viewer with this tap action:
+
+```yaml
+tap_action:
+  action: fire-dom-event
+  onvif_motion_viewer:
+    camera: camera.gate
+    image: image.gate_last_snapshot
+    time: sensor.gate_last_snapshot_time   # optional
 ```
 
 Prefer plain cards? [`examples/dashboard.yaml`](examples/dashboard.yaml) has the same "Last Motion" grid in core-card YAML.
